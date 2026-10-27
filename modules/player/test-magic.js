@@ -104,7 +104,7 @@ try {
   const hpB = pb.hp, before = byMage.length;
   a.action('cast', { spell: 'nova', target: pa.id });
   await until(() => byMage.slice(before).some(h => h.target === zt && h.amount === nova.damage));
-  assert.equal(pa.hp, 10, 'the nova spares its caster');
+  assert.ok(pa.hp >= 10, 'the nova spares its caster'); // a kill may level them up, which adds health
   assert.equal(pb.hp, hpB - nova.friendDamage, 'and friends caught in it');
   assert.ok(a.events.some(m => m.name === 'nova'));
   console.log('PASS staff, mana, fireball (target and direction), line of sight, heal (friend and self), focus shell, sword taunt, firestorm at a point, nova');
