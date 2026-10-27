@@ -1,5 +1,5 @@
 // TEAM PLAYER (client helper): how magic looks and sounds. Explosions, fireball
-// trails, heal motes, the focus shell bubble and beam, the mana bar, health bars
+// trails, heal motes, the mend bubble and beam, the mana bar, health bars
 // over other players and wounded creatures, and placeholder drawers (Art may
 // override the drawers; it loads last). Glowing particles draw in a HUD with
 // additive blending, so they burn bright over the night's darkness.
@@ -268,7 +268,7 @@ onEvent('net:boom', (game, { x, y, size, kind }) => {
 onEvent('net:cast', (game, { spell, x, y, tx, ty, amount }) => {
   const v = loudness(game, x, y);
   const a = Math.atan2(ty - y, tx - x), hx = x + Math.cos(a) * 0.5, hy = y + Math.sin(a) * 0.5;
-  const color = spell === 'heal' || spell === 'shell' ? gold : fire;
+  const color = spell === 'heal' || spell === 'mend' ? gold : fire;
   if (game.canSee(hx, hy)) { // a flare at the tip of the staff
     add({ kind: 'core', x: hx, y: hy, life: 0.18, size: 0.45, color });
     for (let i = 0; i < 10; i++) {
@@ -281,7 +281,7 @@ onEvent('net:cast', (game, { spell, x, y, tx, ty, amount }) => {
     tone(110, 0.9, 'sawtooth', 0.05 * v, 55);
     if (game.canSee(tx, ty)) add({ kind: 'ring', x: tx, y: ty, life: 0.5, size: 2.8, grow: -4, color: fire });
   }
-  if (spell === 'shell') tone(220, 0.5, 'sine', 0.06 * v, 440);
+  if (spell === 'mend') tone(220, 0.5, 'sine', 0.06 * v, 440);
   if (spell === 'heal' && game.canSee(tx, ty)) {
     for (let i = 0; i < 16; i++) {
       add({ kind: 'spark', x: tx + rand(-0.4, 0.4), y: ty + rand(-0.2, 0.4), vx: rand(-0.2, 0.2), vy: rand(-2, -0.8),
@@ -291,11 +291,17 @@ onEvent('net:cast', (game, { spell, x, y, tx, ty, amount }) => {
   }
 });
 
-onEvent('net:shellHit', (game, { id }) => {
+// A mend heals in whole points: each one rises off the player as gold motes and a "+1".
+onEvent('net:mended', (game, { id, amount }) => {
   const e = game.entities.get(id);
   if (!e || !game.canSee(e._rx, e._ry)) return;
   add({ kind: 'ring', x: e._rx, y: e._ry, life: 0.3, size: 0.55, grow: 1.2, color: gold });
-  tone(1200, 0.12, 'triangle', 0.05 * loudness(game, e.x, e.y), 900);
+  for (let i = 0; i < 6; i++) {
+    add({ kind: 'spark', x: e._rx + rand(-0.35, 0.35), y: e._ry + rand(-0.1, 0.35), vx: rand(-0.2, 0.2), vy: rand(-1.8, -0.7),
+      life: rand(0.5, 0.9), size: rand(0.03, 0.06), color: gold });
+  }
+  add({ kind: 'text', text: `+${amount}`, x: e._rx + rand(-0.2, 0.2), y: e._ry - 0.7, vy: -1, drag: 1, life: 0.8 });
+  tone(880, 0.15, 'triangle', 0.03 * loudness(game, e.x, e.y), 1320);
 });
 
 // A nova: the caster flashes purple-white and rings of violet fire roll out to its
@@ -329,8 +335,8 @@ onEvent('net:taunt', (game, { x, y }) => {
   add({ kind: 'ring', x, y, life: 0.35, size: 0.4, grow: 9, color: (t, a = 1) => `rgba(220,40,40,${a * 0.7})` });
 });
 
-// ------------------------------------------------- focus shell: bubble, beam ----
-registerHud('spell-shell', (ctx, game) => {
+// ------------------------------------------------------- mend: bubble, beam ----
+registerHud('spell-mend', (ctx, game) => {
   if (game.ui) return;
   const t = now() / 1000;
   ctx.globalCompositeOperation = 'lighter';
@@ -352,8 +358,8 @@ registerHud('spell-shell', (ctx, game) => {
       ctx.stroke();
     }
   }
-  for (const e of game.entities.values()) { // the bubble around each shelled player
-    if (e.type !== 'player' || !e.shelled || !game.canSee(e._rx, e._ry)) continue;
+  for (const e of game.entities.values()) { // the bubble around each mended player
+    if (e.type !== 'player' || !e.mended || !game.canSee(e._rx, e._ry)) continue;
     const p = game.worldToScreen(e._rx, e._ry), r = T * (0.62 + 0.03 * Math.sin(t * 6));
     const g = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r);
     g.addColorStop(0, 'rgba(255,200,80,0)');
@@ -407,7 +413,7 @@ registerHud('health-bars', (ctx, game) => {
       ctx.fillStyle = C.moon;
       ctx.fillRect(x, y + bh + 1, bw * Math.max(0, e.mana / e.maxMana), 2);
     }
-    if (e.shelled) {
+    if (e.mended) {
       ctx.strokeStyle = C.candle;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(x - 1.5, y - 1.5, bw + 3, bh + 3 + (e.maxMana > 0 ? 3 : 0));

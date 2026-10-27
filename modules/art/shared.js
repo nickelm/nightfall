@@ -7,3 +7,4 @@ import { registerEntityType, registerKeyHint } from '../../shared/registry.js';
 registerEntityType('team-map', {});
 
 registerKeyHint('M', 'minimap');
+registerKeyHint('F4', 'mute');

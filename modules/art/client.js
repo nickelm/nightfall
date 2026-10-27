@@ -5,12 +5,15 @@
 // anything without a drawer falls back to a circle.
 // Art direction: Halloween. Pumpkin orange, candle yellow, bone, and violet on a
 // purple-black night; use game.theme.colors and game.font() (client/core/theme.js).
-import { registries, registerDrawer, registerHud, registerClientSystem, onEvent } from '../../shared/registry.js';
+import { registries, registerDrawer, registerHud, onEvent } from '../../shared/registry.js';
 import { hash2, valueNoise } from '../../shared/rng.js';
 import { TILE_PX } from '../../shared/config.js';
 import './minimap.js';
 import './indicators.js';
 import './touch.js';
+import './sfx.js';
+import './music.js';
+import { sound } from './audio.js';
 
 const now = () => performance.now();
 const flashing = (e) => (e._flashUntil || 0) > now();
@@ -1370,26 +1373,21 @@ registerHud('effects', (ctx, game) => {
 });
 
 // ---------------------------------------------------------------- sound ----
-
-let audio = null;
-const unlockAudio = () => { // browsers only allow audio after a user gesture
-  const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
-  if (AC) audio ||= new AC();
-};
-addEventListener('keydown', unlockAudio, { once: true });
-addEventListener('mousedown', unlockAudio, { once: true });
+// Recorded effects live in sfx.js, the music in music.js, the shared audio setup in
+// audio.js. The synth blips here cover the events with no fitting sample.
 
 /** Simple synth blip: frequency in Hz, duration in s, oscillator type, volume, end frequency */
-export function blip(freq = 440, dur = 0.1, type = 'square', vol = 0.08, endFreq = freq) {
-  if (!audio) return;
-  const t = audio.currentTime;
+export function blip(freq = 440, dur = 0.1, type = 'square', vol = 0.08, endFreq = freq, delay = 0) {
+  const audio = sound.ctx;
+  if (!audio || audio.state !== 'running') return;
+  const t = audio.currentTime + delay;
   const osc = audio.createOscillator(), gain = audio.createGain();
   osc.type = type;
   osc.frequency.setValueAtTime(freq, t);
   osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t + dur);
   gain.gain.setValueAtTime(vol, t);
   gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(gain).connect(audio.destination);
+  osc.connect(gain).connect(sound.sfx);
   osc.start(t);
   osc.stop(t + dur);
 }
@@ -1397,42 +1395,23 @@ export function blip(freq = 440, dur = 0.1, type = 'square', vol = 0.08, endFreq
 onEvent('net:hit', (game, { id }) => {
   const e = game.entities.get(id);
   if (e) e._flashUntil = now() + 120;
-  blip(id === game.myId ? 120 : 220, 0.12, 'square', 0.08, 60);
 });
 onEvent('net:swing', (game, { id }) => {
   const e = game.entities.get(id);
   if (e) e._swingUntil = now() + 150;
-  if (id === game.myId) blip(600, 0.06, 'triangle', 0.05, 300);
 });
-onEvent('net:parry', (game, { x, y }) => { spark(x, y, '#ffe680', 300); blip(1400, 0.15, 'triangle', 0.1, 900); });
-onEvent('net:block', (game, { x, y }) => { spark(x, y, '#d9b26f', 200); blip(180, 0.1, 'square', 0.08, 120); });
-onEvent('net:harvested', (game, { by }) => { if (by === game.myId) blip(300, 0.08, 'square', 0.06, 180); });
+onEvent('net:parry', (game, { x, y }) => { spark(x, y, '#ffe680', 300); blip(1400, 0.15, 'triangle', 0.05, 900); });
+onEvent('net:block', (game, { x, y }) => spark(x, y, '#d9b26f', 200));
 onEvent('net:placed', (game, { by, item }) => {
-  if (by !== game.myId) return;
-  if (registries.items.get(item)?.places) blip(520, 0.3, 'sine', 0.06, 780); // a light comes alive
-  else blip(170, 0.08, 'square', 0.07, 110);
-});
-
-// Mining ticks while you hold the button: a thunk on wood, a clink on stone.
-let mineTick = 0;
-registerClientSystem('mining-sound', (game, dt) => {
-  const m = game.me?.mining;
-  if (!m) { mineTick = 0; return; }
-  if ((mineTick -= dt) > 0) return;
-  mineTick = 0.3;
-  const tool = game.world.tile(m.x, m.y)?.tool;
-  if (tool === 'pickaxe') blip(950, 0.05, 'square', 0.035, 620);
-  else if (tool === 'axe') blip(150, 0.07, 'triangle', 0.09, 90);
-  else blip(320, 0.05, 'triangle', 0.05, 220);
+  if (by === game.myId && registries.items.get(item)?.places) blip(520, 0.3, 'sine', 0.05, 780); // a light comes alive
 });
 onEvent('net:fed', (game, { id }) => {
   const e = game.entities.get(id);
   if (e) spark(e.x, e.y - 0.2, '#fa3', 300);
-  blip(250, 0.3, 'sawtooth', 0.04, 500);
+  blip(250, 0.3, 'sawtooth', 0.03, 500);
 });
 onEvent('net:fireOut', () => blip(160, 0.6, 'sine', 0.08, 60));
-onEvent('net:crafted', () => blip(500, 0.25, 'triangle', 0.07, 900));
 onEvent('net:dusk', () => blip(110, 1.5, 'sine', 0.12, 55));
 onEvent('net:dawn', () => blip(330, 1.0, 'sine', 0.08, 660));
-onEvent('net:died', () => blip(200, 0.8, 'sawtooth', 0.08, 40));
-onEvent('net:horde', () => { blip(98, 1.2, 'sawtooth', 0.09, 92); setTimeout(() => blip(73, 1.6, 'sawtooth', 0.09, 70), 900); }); // war horn
+onEvent('net:died', () => blip(200, 0.8, 'sawtooth', 0.06, 40));
+onEvent('net:horde', () => { blip(98, 1.2, 'sawtooth', 0.09, 92); blip(73, 1.6, 'sawtooth', 0.09, 70, 0.9); }); // war horn

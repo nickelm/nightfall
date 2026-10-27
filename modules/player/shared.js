@@ -5,9 +5,9 @@ import { registerEntityType, registerItem, registerRecipe, registerKeyHint, regi
 // hotbar: 9 item names (or null) pointing into the inventory; the held item is hotbar[selected].
 // stamina: seconds of running (Shift while moving); the server drains and refills it.
 // mana: spell power; maxMana is 0 until the player owns a staff (spells-server.js).
-// shelled: a friend's focus shell protects this player (no damage, no attacks).
-// channeling: id of the friend this player is shelling, or null.
-registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina: 4, maxStamina: 4, mana: 0, maxMana: 0, shelled: false, channeling: null, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
+// mended: someone is healing this player over time (clients draw a bubble).
+// channeling: id of the player this one is mending, or null.
+registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina: 4, maxStamina: 4, mana: 0, maxMana: 0, mended: false, channeling: null, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
 
 // Weapons. `damage` is how hard a held item hits in melee (default 1). The optional
 // `weapon` field picks an attack kind from modules/player/weapons.js and tunes it;
@@ -36,16 +36,17 @@ registerKeyHint('Boat', 'lands automatically');
 registerKeyHint('RMB portal', 'enter; WASD travel, Space exit');
 
 // Magic. Craft a staff to get a mana bar; with the staff in hand, the mouse button and
-// what is under the cursor pick the spell (sight.js). Every spell needs line of sight.
+// what is under the cursor pick the spell (sight.js). Spells need line of sight to their
+// target unless they say `sight: false` (heals and firestorms reach around walls).
 // `free`: cast at empty ground too, as a shot in that direction or at that point.
 registerItem('staff', { color: '#6a3fa0', gear: 2 });
 registerRecipe('staff', { inputs: { wood: 3, 'monster-goo': 3 }, output: { staff: 1 } });
 registerSpell('fireball',  { on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
-registerSpell('firestorm', { on: 'foe',    free: 'point',     cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
-registerSpell('heal',      { on: ['friend', 'self'],          cost: 2,  cooldown: 0.6, range: 11, amount: 2 }); // cheap: hold RMB to keep healing
-registerSpell('shell',     { on: 'friend',                    cost: 2,  cooldown: 0,   range: 11, drain: 4 }); // drain: mana per second held
+registerSpell('firestorm', { on: 'foe',    free: 'point',     sight: false, cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
+registerSpell('heal',      { on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0.6, range: 22, amount: 2 }); // cheap and far-reaching: hold to keep healing
+registerSpell('mend',      { on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0,   range: 22, drain: 1, rate: 2 }); // held: drain mana/s, rate hp/s
 // A purple nova bursting out of the caster: huge damage to every foe in reach, but it
-// also hurts any friend caught in it (a shell protects them); the caster is unharmed.
+// also hurts any friend caught in it; the caster is unharmed.
 // Cheap and quick to repeat: the danger is to the people standing next to you.
 registerSpell('nova',      { on: 'self',                      cost: 3,  cooldown: 1,   range: 1,  radius: 3.5, damage: 8, friendDamage: 2 });
 
@@ -55,6 +56,6 @@ registerEntityType('fireball', { vx: 0, vy: 0, target: null, owner: null, damage
 registerEntityType('blast', { light: 0, lightColor: '#ffe070', age: 0, ttl: 0.6, peak: 3.5, hot: '#ffe070', cool: '#ff3a10' });
 registerEntityType('firestorm', { radius: 2.5, ttl: 1.8, owner: null, light: 3, lightColor: '#ff3a10' });
 
-registerKeyHint('Staff LMB', 'fireball / shell friend / heal self (hold)');
+registerKeyHint('Staff LMB', 'fireball / mend friend or self (hold)');
 registerKeyHint('Staff RMB', 'firestorm / heal friend (hold) / nova on self');
 registerKeyHint('Sword', 'swings taunt nearby foes');

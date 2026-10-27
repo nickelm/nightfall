@@ -45,9 +45,9 @@ registerTile('rohan-floor', { color: '#a27b47', structure: true });
 registerItem('rohan-hall', { color: '#a6a15b', use: true });
 registerRecipe('rohan-hall', { inputs: { wood: 50, stone: 20 }, output: { 'rohan-hall': 1 } });
 registerEntityType('rohan-hall', { light: 7, lightColor: '#ffd79c', spawnProtection: 14 });
-registerTile('white-city-wall', { color: '#deded7', solid: true, opaque: true, structure: true,
+registerTile('white-city-wall', { color: '#a8a1a6', solid: true, opaque: true, structure: true,
   harvest: { item: 'stone', becomes: 'gravel' }, hardness: 8, tool: 'pickaxe' });
-registerTile('white-city-floor', { color: '#c4c8c6', structure: true });
+registerTile('white-city-floor', { color: '#827a85', structure: true });
 registerItem('minas-tirith', { color: '#eef0df', use: true });
 registerRecipe('minas-tirith', { inputs: { stone: 200, gold: 10, diamond: 5 }, output: { 'minas-tirith': 1 } });
 registerEntityType('minas-tirith', { light: 10, lightColor: '#f2efd4', spawnProtection: 22 });

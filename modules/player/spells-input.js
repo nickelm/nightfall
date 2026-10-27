@@ -1,9 +1,10 @@
 // TEAM PLAYER (client helper): casting with the staff in hand. What is under the
 // cursor picks the spell (sight.js): on a foe or empty ground, left click throws a
-// fireball and right click calls a firestorm; on a friend, holding left keeps a focus
-// shell on them and holding right keeps healing them (no need to stay on target); on
-// yourself, holding left keeps healing you and right click sets off a nova. Right click on something interactive (a
-// campfire, a door) still interacts. The server checks everything again; this side
+// fireball and right click calls a firestorm; on a friend or yourself, holding left
+// mends them (healing over time), and on a friend right click heals at once (holding
+// it repeats); right click on yourself sets off a nova. Once a heal or mend starts it
+// stays on that player while the button is held. Right click on something interactive
+// (a campfire, a door) still interacts. The server checks everything again; this side
 // only aims and shows a ring or a reticle.
 import { registries, registerHud, onEvent } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
@@ -11,7 +12,7 @@ import { relation, clearLine, SPELL_FOR } from './sight.js';
 
 const PICK_RADIUS = 0.6; // tiles from the cursor to a target's center (scaled by its size)
 
-let leftLock = null;  // { shell } or { heal, next } from a left press that cast, until released
+let leftLock = null;  // { mend } from a left press that cast, until released
 let rightLock = false; // a right press that cast, until released (so it does not start a guard);
                        // { heal, next } while holding a heal on a friend
 let lastFail = 0;
@@ -33,10 +34,11 @@ function hoverTarget(game) {
   return best;
 }
 
-/** Can a spell reach world point (x, y): in range and in line of sight? */
-function reachable(game, x, y, spell = 'fireball') {
-  const me = game.me, range = registries.spells.get(spell)?.range ?? 11;
-  return Math.hypot(x - me.x, y - me.y) <= range && clearLine(game.world, me.x, me.y, x, y);
+/** Can a spell reach world point (x, y): in range, and in line of sight if it needs it? */
+function reachable(game, x, y, name = 'fireball') {
+  const me = game.me, spell = registries.spells.get(name);
+  return Math.hypot(x - me.x, y - me.y) <= (spell?.range ?? 11) &&
+    (spell?.sight === false || clearLine(game.world, me.x, me.y, x, y));
 }
 
 const cursor = (game) => game.screenToWorld(game.input.mouse.x, game.input.mouse.y);
@@ -48,7 +50,7 @@ export function updateCasting(game, free, interacting = () => false) {
   const k = game.input;
   const active = free && holdsStaff(game);
   if (leftLock && (!active || !k.mouseDown(0))) {
-    if (leftLock.shell) game.sendAction('shell', { stop: true });
+    if (leftLock.mend != null) game.sendAction('mend', { stop: true });
     leftLock = null;
   }
   if (rightLock && (!active || !k.mouseDown(2))) rightLock = false;
@@ -63,11 +65,9 @@ export function updateCasting(game, free, interacting = () => false) {
   };
   if (k.clicked(0)) {
     const a = aim('left');
-    if (a.spell === 'shell') game.sendAction('shell', { target: a.target });
+    if (a.spell === 'mend') game.sendAction('mend', { target: a.target });
     else game.sendAction('cast', a);
-    leftLock = a.spell === 'heal' ? healLock(a.target) : { shell: a.spell === 'shell' };
-  } else if (leftLock?.heal != null) {
-    keepHealing(game, leftLock);
+    leftLock = { mend: a.spell === 'mend' ? a.target : null };
   }
   if (k.clicked(2) && !interacting()) {
     const a = aim('right');
@@ -98,7 +98,7 @@ function keepHealing(game, lock) {
 registerHud('spell-target', (ctx, game) => {
   if (game.ui || !game.me || !holdsStaff(game) || !game.input.mouse.active) return;
   const hover = hoverTarget(game), C = game.theme.colors;
-  const healing = game.entities.get(leftLock?.heal ?? rightLock?.heal);
+  const healing = game.entities.get(leftLock?.mend ?? rightLock?.heal);
   if (healing) { // the player we keep healing, wherever the cursor goes
     const p = game.worldToScreen(healing._rx, healing._ry), pulse = 1 + 0.08 * Math.sin(performance.now() / 90);
     ctx.strokeStyle = C.candle;
@@ -123,7 +123,9 @@ registerHud('spell-target', (ctx, game) => {
     return;
   }
   const { e, rel } = hover;
-  const ok = reachable(game, e._rx, e._ry, SPELL_FOR.left[rel]);
+  const left = SPELL_FOR.left[rel], right = SPELL_FOR.right[rel];
+  const canLeft = reachable(game, e._rx, e._ry, left), canRight = reachable(game, e._rx, e._ry, right);
+  const ok = canLeft || canRight;
   const p = game.worldToScreen(e._rx, e._ry), r = TILE_PX * 0.5 * (e.size || 1);
   const color = !ok ? C.ash : rel === 'foe' ? C.pumpkin : rel === 'self' ? C.moon : C.candle;
   const spin = performance.now() / 600;
@@ -140,7 +142,7 @@ registerHud('spell-target', (ctx, game) => {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillStyle = color;
-  const label = ok ? `LMB ${SPELL_FOR.left[rel]}  ·  RMB ${SPELL_FOR.right[rel]}` : 'out of sight or range';
+  const label = !ok ? 'out of sight or range' : [canLeft && `LMB ${left}`, canRight && `RMB ${right}`].filter(Boolean).join('  ·  ');
   ctx.fillText(label, p.x, p.y + r + 4);
 });
 
