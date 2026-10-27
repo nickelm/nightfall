@@ -9,6 +9,7 @@ const STUN = 1.2;            // seconds a parried attacker stays stunned
 const STAMINA_REGEN = 1;     // stamina per second while not running
 const REGEN_DELAY = 0.8;     // seconds after running stops before stamina refills
 const WINDED_UNTIL = 0.3;    // after running dry, no running until this fraction of maxStamina
+const HEALTH_REGEN_INTERVAL = 10; // seconds between recovered health points
 
 // Melee: hit everything with hp in a short arc in front of the player.
 // The held item's `damage` decides how hard (the sword: 2, anything else: 1).
@@ -87,5 +88,21 @@ registerSystem('respawn', (game) => {
     const spot = game.world.findWalkable();
     game.teleport(p, spot.x, spot.y);
     game.sendTo(p.id, 'died', {});
+  }
+});
+
+// Recover one health point at a time while alive, without exceeding maxHp.
+registerSystem('health-regen', (game, dt) => {
+  for (const p of game.players()) {
+    if (!(p.hp > 0) || !(p.hp < p.maxHp)) {
+      p._healthRegen = 0;
+      continue;
+    }
+    p._healthRegen = (p._healthRegen || 0) + dt;
+    if (p._healthRegen >= HEALTH_REGEN_INTERVAL) {
+      const points = Math.floor(p._healthRegen / HEALTH_REGEN_INTERVAL);
+      p.hp = Math.min(p.maxHp, p.hp + points);
+      p._healthRegen = p.hp >= p.maxHp ? 0 : p._healthRegen % HEALTH_REGEN_INTERVAL;
+    }
   }
 });
