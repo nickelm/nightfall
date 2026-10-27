@@ -13,6 +13,22 @@ You decide what lives on the island and how frightening each night becomes. The 
 - `director.js`: the game director. At night it keeps a threat budget that scales with players, gear, settlement, and night number, cycles through build-up, peak, and relax, and sends hordes (DESIGN.md has the formula). All tuning numbers live in `TUNING`. Its state lives on `game.director`, so it survives hot swaps.
 - `client.js`: horde warnings and the F3 debug panel.
 
+## Raising animals
+
+Pigs, sheep, chickens, and cows appear in the field. Right-click one to catch it as a
+carried item. Craft an `animal-pen` from five wood and place it with right-click; each
+pen holds one animal. Hold the caught animal and right-click the pen to put it inside.
+
+Hold a pumpkin and right-click an occupied pen to feed it for 60 seconds. While fed,
+the animal grows for 30 seconds and then produces one item every 20 seconds, up to
+five stored items. Pigs produce truffles, sheep produce wool, chickens produce eggs,
+and cows produce milk. These products are currently collectible items.
+
+Right-click with an empty hotbar slot to collect the products; if none are waiting,
+the same action retrieves the animal. Its growth, feed, and production progress are
+preserved when it is moved. Right-click an empty tile while holding a caught animal to
+release it back into the field. An empty pen can also be picked up with an empty hand.
+
 ## Goals, in priority order
 
 1. **A second monster (by 0:45).** Give it its own `threat` cost and a spawn function, and let the director choose between monster types with a weighted table that changes with the night number. A good candidate: a **snuffer** (threat 3) that ignores firelight, walks to the nearest burning campfire, and drains its fuel. It punishes turtling and forces someone to step out and fight. Draw a placeholder in your `client.js`.

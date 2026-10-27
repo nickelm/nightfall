@@ -2,6 +2,7 @@
 // moving them here moves them on every client automatically.
 import { registerSystem, onEvent } from '../../shared/registry.js';
 import { updateDirector, noteDamage } from './director.js';
+import './farm-server.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 
 // Burning campfires (entities with repels: true) keep monsters out of most of their light.

@@ -1,6 +1,7 @@
 // TEAM CREATURES (client): horde warnings and the director debug view (F3).
 // Quest logs and NPC dialogue boxes would go here too.
 import { registerClientSystem, registerHud, onEvent } from '../../shared/registry.js';
+import './farm-art.js';
 
 let debug = false;
 let last = null;
