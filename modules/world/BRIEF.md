@@ -31,6 +31,19 @@ Craft four redstone lamps into one mega lamp. It behaves like an ordinary lamp,
 including its switch, wiring, monster protection and pickaxe pickup, but its light
 radius is 15 tiles instead of 6. Normal player vision range and obstacles still apply.
 
+## Regions and biomes
+
+The world has nine 160×160 regions arranged in a 3×3 grid. Existing 160×160
+saves are migrated to the middle, preserving placed tiles, entities, players and
+the explored map. Narrow land routes connect the seven ordinary outer regions;
+the north-east mineral island has an eight-tile water moat and requires a boat.
+The mineral island contains dense iron, gold, diamond, redstone and lava veins;
+its redstone target is 1.7 times the island's other threefold mineral density.
+Northern areas include snow and snowy trees; southern areas include sand and dry
+trees; other regions include forests and highlands. Granite, sandstone and
+froststone can be mined and placed as building blocks. Snow supports lamps and
+redstone wire, and breaking wire restores the snow underneath.
+
 ## Lava and obsidian
 
 Solid lava veins and hazardous lava pools generate in rocky terrain, without

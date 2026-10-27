@@ -3,7 +3,7 @@
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import './farm-art.js';
 import './dynamite-art.js';
-import './giant-potion-art.js';
+import './monsters-art.js';
 import './first-person.js';
 
 // Blood slime: the slime drawing (from Art) scaled up by `size`, in the slime's own red.
@@ -57,9 +57,18 @@ registerHud('light-burn-effects', (ctx, game) => {
 let debug = false;
 let last = null;
 
-onEvent('net:horde', (game, { from, count, target }) => {
-  game.notify(`A horde of ${count} approaches from the ${from}!`, 5, '#f96');
+onEvent('net:waveWarn', (game, { from }) => game.notify(`Something stirs in the ${from}...`, 4, game.theme.colors.moon));
+onEvent('net:horde', (game, { from, count, target, wave, of }) => {
+  const label = wave && of > 1 ? `Wave ${wave}/${of}: ` : '';
+  game.notify(`${label}a horde of ${count} approaches from the ${from}!`, 5, '#f96');
   if (target === game.myId) game.notify('...and it is coming for you', 4, '#f66');
+});
+onEvent('net:raid', (game, { from, count, bloodMoon }) => {
+  if (bloodMoon) game.notify('BLOOD MOON', 6, game.theme.colors.blood);
+  game.notify(`RAID! ${count} of the dead march on your base from the ${from}`, 6, game.theme.colors.blood);
+});
+onEvent('net:raidOver', (game, { dawn }) => {
+  game.notify(dawn ? 'Dawn breaks the raid' : 'The raid is broken!', 4, game.theme.colors.candle);
 });
 onEvent('net:director', (game, d) => { last = d; });
 
@@ -75,7 +84,10 @@ registerHud('director-debug', (ctx, game, w, h) => {
         `threat ${last.threat.toFixed(1)} / budget ${last.budget.toFixed(1)}`,
         `intensity ${last.intensity.toFixed(2)}`,
         ...Object.entries(last.factors || {}).map(([k, v]) => `  ${k}: ${typeof v === 'number' ? v.toFixed(2) : v}`),
-        `hordes left: ${(last.hordes || []).map((x) => x.toFixed(2)).join(', ') || 'none'}`,
+        `waves left: ${(last.hordes || []).map((x) => x.toFixed(2)).join(', ') || 'none'}`,
+        ...(last.pulses || []).map((p) => `  pulse ${p.kind} x${p.n} in ${p.in.toFixed(0)}s`),
+        `raid: ${last.raid ? `on (${last.raid.count})` : last.raidAt != null ? `at ${last.raidAt.toFixed(2)}` : 'none'}${last.bloodMoon ? ' (blood moon)' : ''}`,
+        `alive: ${Object.entries(last.census || {}).map(([t, n]) => `${t} ${n}`).join(', ') || 'none'}`,
       ]
     : ['director: no data yet'];
   ctx.fillStyle = 'rgba(0,0,0,0.6)';

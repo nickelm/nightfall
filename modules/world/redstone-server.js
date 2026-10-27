@@ -2,7 +2,7 @@
 import { onAction, onEvent, registerSystem, registries } from '../../shared/registry.js';
 
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const GROUNDS = new Set(['grass', 'sand', 'gravel']);
+const GROUNDS = new Set(['grass', 'sand', 'gravel', 'snow']);
 const key = (x, y) => `${x},${y}`;
 const position = e => ({ x: Math.floor(e.x), y: Math.floor(e.y) });
 const selected = p => p.hotbar?.[p.selected];
@@ -71,7 +71,7 @@ onAction('use', (game, p, { x, y }) => {
   const item = selected(p);
   if (!['redstone-wire', 'redstone-lamp', 'mega-lamp'].includes(item) || !game.has(p, item) || !inReach(p, x, y, 2.6)) return;
   const tile = game.world.tile(x, y);
-  if (!tile || !GROUNDS.has(tile.name)) { say(game, p, 'Place circuits on grass, sand, or gravel.'); return; }
+  if (!tile || !GROUNDS.has(tile.name)) { say(game, p, 'Place circuits on grass, sand, gravel, or snow.'); return; }
   const occupants = [...game.entities.values()].filter(e => Math.floor(e.x) === x && Math.floor(e.y) === y);
   if (item === 'redstone-wire') {
     if (occupants.some(e => e.type !== 'player' && e.interactive)) return;

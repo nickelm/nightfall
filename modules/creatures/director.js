@@ -19,6 +19,14 @@
 // Intensity (0..1) per player rises when they take damage or have monsters
 // close, and decays over time. The group's intensity is the highest one.
 //
+// On top of that:
+//   monster table  which types spawn, weighted by night (MONSTERS)
+//   darkness       some spawns crawl out of any unlit tile near a player, even inside the base
+//   waves          the scheduled hordes, announced a few seconds early and sent in three
+//                  pulses from one direction: spider runners, a main body, skeletons at the back
+//   raids          every third night (blood moon), and sometimes on others, a war party of
+//                  zombies, skeletons, and spiders marches on the base instead of a player
+//
 // All state lives on game.director, so it survives hot swaps.
 import { registries } from '../../shared/registry.js';
 
@@ -37,12 +45,61 @@ export const TUNING = {
   damageIntensity: 0.15,  // per point of damage taken
   closeIntensity: 0.06,   // per second per monster within 3 tiles
   intensityDecay: 0.08,   // per second
+  darkShare: 0.35,        // share of ambient spawns that crawl out of unlit tiles near a player
+  darkMin: 4,             // tiles from the player
+  darkMax: 10,
+  waveWarn: 6,            // seconds of warning before a wave
+  wavePulseGap: 5,        // seconds between a wave's three pulses
+  raidEvery: 3,           // blood moon: a raid is certain every this many nights
+  raidChance: 0.25,       // chance of a raid on other nights, from night 2
+  raidAt: 0.6,            // night progress when the raid sets out
+  raidShare: 1.2,         // raid size as a fraction of the budget
+  raidMax: 30,
+  raidDistance: 20,       // tiles from the base where the raiders gather
 };
 
+// Ambient and main-body spawns, weighted per night; the last row covers every later night.
+export const MONSTERS = [
+  { slime: 1 },                                         // night 1
+  { slime: 4, spider: 2, zombie: 2, skeleton: 1 },      // night 2
+  { slime: 3, spider: 2.5, zombie: 2.5, skeleton: 2 },  // night 3 and later
+];
+
+export function pickType(night) {
+  const table = MONSTERS[Math.max(1, Math.min(night, MONSTERS.length)) - 1];
+  const entries = Object.entries(table).filter(([type]) => registries.entityTypes.get(type));
+  let r = Math.random() * entries.reduce((sum, [, w]) => sum + w, 0);
+  for (const [type, w] of entries) if ((r -= w) < 0) return type;
+  return 'slime';
+}
+
+// Raid parties are half zombies (they break in), then skeletons, then spiders.
+const raidType = () => { const r = Math.random(); return r < 0.5 ? 'zombie' : r < 0.8 ? 'skeleton' : 'spider'; };
+
 const COMPASS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
+const compass = (angle) => COMPASS[(Math.round((((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 4))) % 8];
 
 export function director(game) {
-  return (game.director ||= { state: 'idle', since: game.time, budget: 0, threat: 0, intensity: 0, hordes: [], nextSpawn: 0, factors: {} });
+  return (game.director ||= { state: 'idle', since: game.time, budget: 0, threat: 0, intensity: 0, hordes: [], pulses: [], nextSpawn: 0, factors: {} });
+}
+
+/** Where the settlement is: the burning fire with the most structures around it, else the
+ *  densest cluster of structure tiles. null when nobody has built anything. */
+export function findBase(game) {
+  const structures = [];
+  for (const [key, id] of game.world.edits) {
+    if (!registries.tiles[id]?.structure) continue;
+    const [x, y] = key.split(',').map(Number);
+    structures.push({ x: x + 0.5, y: y + 0.5 });
+  }
+  const around = (p) => structures.filter((s) => Math.hypot(s.x - p.x, s.y - p.y) < 10).length;
+  const fires = [...game.entities.values()].filter((e) => e.repels);
+  let best = null, bestN = 0;
+  for (const c of fires.length ? fires : structures) {
+    const n = around(c) + (fires.length ? 1 : 0);
+    if (n > bestN) { best = c; bestN = n; }
+  }
+  return best && { x: best.x, y: best.y };
 }
 
 const isHostile = (e) => e.hostile && e.hp > 0;
@@ -92,10 +149,16 @@ export function noteDamage(game, hit) {
   hit.target._intensity = Math.min(1, (hit.target._intensity || 0) + hit.amount * TUNING.damageIntensity);
 }
 
-/** Call at dusk: plan tonight's hordes (fractions of the night). */
+/** Call at dusk: plan tonight's waves (fractions of the night) and maybe a raid. */
 export function planNight(game, tod) {
   const d = director(game);
-  d.hordes = tod.day >= 3 ? [0.35, 0.75] : [0.5];
+  d.hordes = tod.day >= 3 ? [0.25, 0.5, 0.75] : tod.day === 2 ? [0.3, 0.7] : [0.5];
+  d.wave = 0;
+  d.waveAngle = Math.random() * Math.PI * 2;
+  d.warned = false;
+  d.pulses = [];
+  d.bloodMoon = tod.day % TUNING.raidEvery === 0;
+  d.raidAt = d.bloodMoon || (tod.day >= 2 && Math.random() < TUNING.raidChance) ? TUNING.raidAt : null;
   setState(game, 'build-up');
 }
 
@@ -104,7 +167,55 @@ function setState(game, state) {
   if (d.state !== state) { d.state = state; d.since = game.time; }
 }
 
-/** Call every tick. spawnFn(game, player, { horde, angle }) must spawn one monster or return null. */
+const calmest = (players) => players.reduce((best, p) => (p._intensity || 0) < (best._intensity || 0) ? p : best);
+
+// A wave: the planned size goes out in three pulses from one direction, aimed at the calmest
+// player. Spiders run ahead, the main body follows, skeletons bring up the rear.
+function launchWave(game, d, budget, tod, players, spawnFn) {
+  d.hordes.shift();
+  d.wave = (d.wave || 0) + 1;
+  d.warned = false;
+  const target = calmest(players);
+  const angle = d.waveAngle ?? Math.random() * Math.PI * 2;
+  d.waveAngle = Math.random() * Math.PI * 2; // the next wave comes from somewhere else
+  const size = Math.max(3, Math.round(budget * TUNING.hordeShare));
+  const runners = Math.max(1, Math.round(size * 0.25)), rear = Math.round(size * 0.25), main = size - runners - rear;
+  const gap = TUNING.wavePulseGap;
+  (d.pulses ||= []).push(
+    { at: game.time + gap, target: target.id, angle, n: main, kind: 'main' },
+    { at: game.time + 2 * gap, target: target.id, angle, n: rear, kind: 'rear' },
+  );
+  spawnPulse(game, { target: target.id, angle, n: runners, kind: 'runners' }, tod.day, players, spawnFn);
+  game.broadcast('horde', { from: compass(angle), count: size, target: target.id, wave: d.wave, of: d.wave + d.hordes.length });
+  setState(game, 'peak');
+}
+
+function spawnPulse(game, pulse, night, players, spawnFn) {
+  const target = game.entities.get(pulse.target) || calmest(players);
+  let n = 0;
+  for (let i = 0; i < pulse.n; i++) {
+    const type = pulse.kind === 'runners' ? 'spider' : pulse.kind === 'rear' ? (night >= 2 ? 'skeleton' : 'slime') : pickType(night);
+    if (spawnFn(game, target, { horde: true, angle: pulse.angle, type })) n++;
+  }
+  return n;
+}
+
+// A raid marches on the base. Without a base, it turns into an extra wave right away.
+function launchRaid(game, d, budget, tod, spawnFn) {
+  d.raidAt = null;
+  const base = findBase(game);
+  if (!base) { d.hordes.unshift(tod.nightProgress); return; }
+  const size = Math.min(TUNING.raidMax, Math.max(5, Math.round(budget * TUNING.raidShare)));
+  const angle = Math.random() * Math.PI * 2;
+  let n = 0;
+  for (let i = 0; i < size; i++) if (spawnFn(game, base, { raid: true, angle, type: raidType() })) n++;
+  d.raid = { x: base.x, y: base.y, count: n, bloodMoon: !!d.bloodMoon };
+  game.broadcast('raid', { from: compass(angle), count: n, x: base.x, y: base.y, bloodMoon: !!d.bloodMoon });
+  setState(game, 'peak');
+}
+
+/** Call every tick. spawnFn(game, player, { horde, angle, type, dark, raid }) must spawn one
+ *  monster or return null; with `raid`, `player` is the base it marches on. */
 export function updateDirector(game, dt, spawnFn) {
   const d = director(game);
   const tod = game.timeOfDay();
@@ -119,7 +230,13 @@ export function updateDirector(game, dt, spawnFn) {
     d.intensity = Math.max(d.intensity, p._intensity);
   }
 
-  if (!tod.isNight || !players.length) { setState(game, 'idle'); d.budget = 0; return; }
+  // the raid is over once every raider is dead (or melted at dawn)
+  if (d.raid && !hostiles.some((h) => h.raider)) {
+    game.broadcast('raidOver', { dawn: !tod.isNight });
+    d.raid = null;
+  }
+
+  if (!tod.isNight || !players.length) { setState(game, 'idle'); d.budget = 0; d.pulses = []; return; }
   if (d.state === 'idle') planNight(game, tod);
 
   const { budget, factors } = computeBudget(game, tod);
@@ -128,33 +245,33 @@ export function updateDirector(game, dt, spawnFn) {
   d.threat = hostiles.reduce((sum, h) => sum + threatOf(h), 0);
   const inState = game.time - d.since;
 
-  // hordes
-  if (d.hordes.length && tod.nightProgress >= d.hordes[0]) {
-    d.hordes.shift();
-    const target = players.reduce((best, p) => (p._intensity || 0) < (best._intensity || 0) ? p : best); // the calmest player
-    const angle = Math.random() * Math.PI * 2;
-    const size = Math.max(3, Math.round(budget * TUNING.hordeShare));
-    let n = 0;
-    for (let i = 0; i < size; i++) if (spawnFn(game, target, { horde: true, angle })) n++;
-    const from = COMPASS[Math.round(((angle % (2 * Math.PI)) / (Math.PI / 4))) % 8];
-    game.broadcast('horde', { from, count: n, target: target.id });
-    setState(game, 'peak');
-    return;
+  // the rest of a wave arrives in pulses
+  for (const pulse of (d.pulses ||= []).filter((p) => game.time >= p.at)) spawnPulse(game, pulse, tod.day, players, spawnFn);
+  d.pulses = d.pulses.filter((p) => game.time < p.at);
+
+  if (d.raidAt != null && tod.nightProgress >= d.raidAt) { launchRaid(game, d, budget, tod, spawnFn); return; }
+
+  // waves: a warning first, then the first pulse
+  if (d.hordes.length) {
+    d.waveAngle ??= Math.random() * Math.PI * 2;
+    if (!d.warned && tod.nightProgress >= d.hordes[0] - TUNING.waveWarn / tod.nightLength) {
+      d.warned = true;
+      game.broadcast('waveWarn', { from: compass(d.waveAngle), wave: (d.wave || 0) + 1, of: (d.wave || 0) + d.hordes.length });
+    }
+    if (tod.nightProgress >= d.hordes[0]) { launchWave(game, d, budget, tod, players, spawnFn); return; }
   }
 
+  const ambient = () => {
+    d.nextSpawn = game.time + TUNING.spawnInterval;
+    spawnFn(game, players[Math.floor(Math.random() * players.length)], { horde: false, dark: Math.random() < TUNING.darkShare });
+  };
   switch (d.state) {
     case 'build-up':
       if (d.intensity >= TUNING.peakIntensity) { setState(game, 'peak'); break; }
-      if (d.threat < budget && game.time >= d.nextSpawn) {
-        d.nextSpawn = game.time + TUNING.spawnInterval;
-        spawnFn(game, players[Math.floor(Math.random() * players.length)], { horde: false });
-      }
+      if (d.threat < budget && game.time >= d.nextSpawn) ambient();
       break;
     case 'peak':
-      if (d.threat < budget && game.time >= d.nextSpawn) {
-        d.nextSpawn = game.time + TUNING.spawnInterval;
-        spawnFn(game, players[Math.floor(Math.random() * players.length)], { horde: false });
-      }
+      if (d.threat < budget && game.time >= d.nextSpawn) ambient();
       if (inState > TUNING.peakSeconds) setState(game, 'relax');
       break;
     case 'relax':

@@ -13,7 +13,7 @@ registerClientSystem('redstone-draw-cache', game => {
   }
 });
 
-for (const ground of ['grass', 'sand', 'gravel']) for (const powered of [false, true]) {
+for (const ground of ['grass', 'sand', 'gravel', 'snow']) for (const powered of [false, true]) {
   const name = `redstone-wire-${ground}${powered ? '-powered' : ''}`;
   registerDrawer(`tile:${name}`, (ctx, tile, x, y, size, tx, ty, game) => {
     ctx.save();
@@ -83,7 +83,7 @@ registerHud('redstone-placement', (ctx, game) => {
   const item = current(game);
   if (!game.me || game.ui || !['redstone-wire', 'redstone-lamp', 'mega-lamp'].includes(item)) return;
   const target = game.targetTile(2.5), tile = game.world.tile(target.x, target.y);
-  if (!tile || !['grass', 'sand', 'gravel'].includes(tile.name)) return;
+  if (!tile || !['grass', 'sand', 'gravel', 'snow'].includes(tile.name)) return;
   const p = game.worldToScreen(target.x, target.y), cx = p.x + TILE_PX / 2, cy = p.y + TILE_PX / 2;
   ctx.save(); ctx.globalAlpha = 0.45;
   if (item === 'redstone-lamp' || item === 'mega-lamp') lamp(ctx, cx, cy, TILE_PX, true, item === 'mega-lamp');

@@ -147,6 +147,8 @@ function saveState() {
   const tiles = registries.tiles;
   const state = {
     seed: SEED,
+    worldWidth: game.world.w,
+    worldHeight: game.world.h,
     time: game.time,
     nextId: game.nextId,
     edits: game.world.editList().map(([x, y, id]) => [x, y, tiles[id]?.name]),
@@ -167,9 +169,30 @@ function backfillDefaults(e) {
 }
 
 if (saved) {
-  for (const [x, y, name] of saved.edits || []) if (registries.tileByName.has(name)) game.world.edit(x, y, name);
-  for (const e of saved.entities || []) game.entities.set(e.id, backfillDefaults(e));
-  for (const p of saved.players || []) offlinePlayers.set(p.name, backfillDefaults(p));
+  const oldW = saved.worldWidth ?? 160, oldH = saved.worldHeight ?? 160;
+  const shiftX = Math.floor((game.world.w - oldW) / 2), shiftY = Math.floor((game.world.h - oldH) / 2);
+  function migrate(e) {
+    if (e.type === 'team-map' && typeof e._seen === 'string' && (shiftX || shiftY)) {
+      const old = Buffer.from(e._seen, 'base64'), bits = Buffer.alloc(Math.ceil(game.world.w * game.world.h / 8));
+      for (let y = 0; y < oldH; y++) for (let x = 0; x < oldW; x++) {
+        const i = y * oldW + x;
+        if (old[i >> 3] & (1 << (i & 7))) {
+          const j = (y + shiftY) * game.world.w + x + shiftX;
+          bits[j >> 3] |= 1 << (j & 7);
+        }
+      }
+      e._seen = bits.toString('base64');
+    } else if (e.type !== 'team-map') {
+      if (Number.isFinite(e.x)) e.x += shiftX;
+      if (Number.isFinite(e.y)) e.y += shiftY;
+      if (Array.isArray(e._cell)) e._cell = [e._cell[0] + shiftX, e._cell[1] + shiftY];
+      delete e._mine; e.mining = null;
+    }
+    return backfillDefaults(e);
+  }
+  for (const [x, y, name] of saved.edits || []) if (registries.tileByName.has(name)) game.world.edit(x + shiftX, y + shiftY, name);
+  for (const e of saved.entities || []) game.entities.set(e.id, migrate(e));
+  for (const p of saved.players || []) offlinePlayers.set(p.name, migrate(p));
   game.time = saved.time ?? game.time;
   game.nextId = saved.nextId ?? game.nextId;
   console.log(`[restore] ${saved.entities?.length || 0} entities, ${saved.players?.length || 0} players, ${saved.edits?.length || 0} tile edits`);
@@ -241,7 +264,7 @@ function join(ws, rawName) {
     // returning player (page reload, Wi-Fi drop, server restart): keep their stuff
     p = backfillDefaults({ ...offlinePlayers.get(name), id: game.nextId++, guarding: false });
     offlinePlayers.delete(name);
-    if (game.world.blocked(p.x, p.y)) Object.assign(p, game.world.findWalkable(p.x, p.y));
+    if (game.world.blocked(p.x, p.y) && !(p.sailing && game.world.tile(p.x, p.y)?.name === 'water')) Object.assign(p, game.world.findWalkable(p.x, p.y));
     game.entities.set(p.id, p);
   } else {
     const spawn = game.world.findWalkable();

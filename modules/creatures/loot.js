@@ -25,6 +25,28 @@ export const LOOT = {
       { item: 'arrow', weight: 3, min: 2, max: 4 },
     ],
   },
+  spider: {
+    rolls: 1,
+    table: [
+      { weight: 3 },
+      { item: 'monster-goo', weight: 2, min: 1, max: 1 },
+    ],
+  },
+  zombie: {
+    rolls: 2,
+    table: [
+      { weight: 2 },
+      { item: 'monster-goo', weight: 3, min: 1, max: 2 },
+      { item: 'wood', weight: 2, min: 1, max: 2 },
+    ],
+  },
+  skeleton: {
+    rolls: 1,
+    table: [
+      { weight: 1 },
+      { item: 'arrow', weight: 4, min: 2, max: 5 },
+    ],
+  },
 };
 
 export const DROP_SECONDS = 90; // drops left on the ground vanish after this long
