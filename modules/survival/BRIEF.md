@@ -8,6 +8,13 @@ You decide what players make and what they need. The central tension of the game
 
 ## What already exists
 
+Cabins cost 20 wood and 5 stone. Select the crafted cabin and right-click the
+entrance tile: the clear 5x4 footprint extends north, with an open approach to
+the south. The door opens normally; the roof lifts while the local player is
+inside. A cabin emits light (radius 5) and prevents monster spawning within 10
+tiles, including raids. Breaking any wall or the door removes the roof, light,
+and protection; the remaining walls and floor stay in the world.
+
 Iron, gold and diamond axes require 2 wood and 3 of their matching mineral;
 their mining powers are 8, 12 and 20. Matching swords require 1 wood and 2
 minerals and deal 3, 4 and 5 damage respectively. The starter sword deals 2.

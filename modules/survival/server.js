@@ -1,5 +1,6 @@
 // TEAM SURVIVAL (server): mining, placing, the hotbar, crafting, fire fuel.
 import { registries, onAction, registerSystem } from '../../shared/registry.js';
+import './cabin-server.js';
 
 const FUEL_PER_WOOD = 20; // seconds of burn time per wood
 const MINE_REACH = 2.2;   // tiles from the player to the mined tile's center
