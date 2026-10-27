@@ -75,7 +75,7 @@ registerHud('redstone-hints', (ctx, game, w) => {
   const tile = game.world.tile(target.x, target.y);
   let text;
   if (device?.type === 'power-source') text = `Power crystal: ${device.on ? 'ON' : 'OFF'}  ·  Right-click: switch  ·  Pickaxe + right-click: pick up`;
-  else if (device?.type === 'redstone-lamp') text = `Redstone lamp: ${device.powered ? 'ON' : 'OFF'}  ·  Connect to power  ·  Pickaxe + right-click: pick up`;
+  else if (device?.type === 'redstone-lamp') text = `Lamp switch: ${device.on ? 'ON' : 'OFF'} · Light: ${device.powered ? 'ON' : 'OFF'} · RMB: switch · Pickaxe + RMB: pick up`;
   else if (tile?.redstoneWire) text = `Redstone wire: ${tile.powered ? 'powered' : 'unpowered'}  ·  Hold left-click to pick up`;
   if (!text) return;
   const width = Math.min(w - 24, 560), x = (w - width) / 2;

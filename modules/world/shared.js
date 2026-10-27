@@ -63,8 +63,9 @@ registerItem('redstone-lamp', { color: '#ffe08a', use: true });
 registerRecipe('redstone-wire', { inputs: { redstone: 1 }, output: { 'redstone-wire': 4 } });
 registerRecipe('redstone-lamp', { inputs: { stone: 2, redstone: 2 }, output: { 'redstone-lamp': 1 } });
 registerEntityType('power-source', { interactive: true, on: true, color: '#a99af2' });
-registerEntityType('redstone-lamp', { interactive: true, powered: false, light: 0, lightColor: '#ffe08a' });
-registerKeyHint('RMB crystal', 'switch power');
+// Old saved lamps default to a passive receiver; newly placed lamps start switched on.
+registerEntityType('redstone-lamp', { interactive: true, on: false, powered: false, light: 0, lightColor: '#ffe08a' });
+registerKeyHint('RMB lamp', 'switch power');
 
 // --- pass 1: island terrain from elevation and moisture noise ---
 registerWorldPass('terrain', (world, rng) => {

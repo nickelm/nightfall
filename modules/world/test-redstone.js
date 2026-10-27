@@ -116,13 +116,19 @@ try {
   await until(() => [...game.entities.values()].some(e => e.type === 'redstone-lamp' && e.powered));
   const lamp1 = [...game.entities.values()].find(e => e.type === 'redstone-lamp');
   assert.equal(lamp1.light, 6); assert.ok(!lamp1.repels, 'electric light does not repel monsters');
+  assert.equal(lamp1.on, true, 'new lamp supplies its own power');
+  await emptyHand(a); a.action('interact', { x: 85, y: 80 });
+  await until(() => !lamp1.on && lamp1.powered);
   await until(() => b.snap.entities.find(e => e.id === lamp1.id)?.powered && b.world.tile(84, 80)?.powered);
   console.log('PASS a connected source powers wire and a visible lamp for both players');
 
   a.move(84.5, 82.5); await until(() => p.y === 82.5);
+  await equip(a, 'redstone-lamp');
   a.action('use', { x: 85, y: 81 });
   await until(() => [...game.entities.values()].filter(e => e.type === 'redstone-lamp').length === 2);
   const lamp2 = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && e.id !== lamp1.id);
+  await emptyHand(a); a.action('interact', { x: 85, y: 81 });
+  await until(() => !lamp2.on);
   assert.equal(lamp2.powered, false, 'diagonal wire and a neighboring lamp do not conduct');
   await equip(a, 'redstone-wire');
   a.action('use', { x: 84, y: 81 });
@@ -164,6 +170,19 @@ try {
   a.action('interact', { x: 85, y: 80 });
   await until(() => !game.entities.has(lamp1.id) && a.me().inventory['redstone-lamp'] === 1);
   console.log('PASS lamps can be picked up with a pickaxe');
+
+  a.move(82.5, 79.5); await until(() => p.x === 82.5);
+  await emptyHand(a); a.action('interact', { x: 82, y: 80 });
+  await until(() => !source.on && !game.world.tile(83, 80).powered);
+  a.move(84.5, 79.5); await until(() => p.x === 84.5);
+  await equip(a, 'redstone-lamp'); a.action('use', { x: 84, y: 80 });
+  await until(() => lamp2.powered && game.world.tile(83, 80).powered && game.world.tile(84, 81).powered);
+  const lampSource = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && e.id !== lamp2.id);
+  assert.equal(lampSource.on, true); assert.equal(lampSource.light, 6);
+  await until(() => b.snap.entities.find(e => e.id === lamp2.id)?.powered);
+  await emptyHand(a); a.action('interact', { x: 84, y: 80 });
+  await until(() => !lampSource.on && !lampSource.powered && !lamp2.powered && !game.world.tile(83, 80).powered);
+  console.log('PASS a lamp supplies its own light and powers a second lamp without a crystal; switching it off stops both');
 } catch (err) { failed = true; console.error(err); }
 finally { clients.forEach(c => c.ws.close()); }
 console.log(failed ? 'Redstone checks failed' : 'All redstone checks passed');
