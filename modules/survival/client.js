@@ -5,6 +5,7 @@
 import { registries, registerClientSystem, registerHud } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 import { safely } from '../../shared/safe.js';
+import { canCraft, orderRecipes } from './crafting-order.js';
 import './tool-art.js';
 
 const SLOTS = 9, SLOT = 46, GAP = 4;
@@ -23,7 +24,7 @@ function hotbarSlot(i, w, h) {
 
 function inventoryLayout(game, w, h) {
   const items = Object.keys(game.me?.inventory || {});
-  const recipes = [...registries.recipes.values()];
+  const recipes = orderRecipes(registries.recipes.values(), game.me?.inventory || {}, registries.items);
   const pw = Math.min(680, w - 32), cols = Math.max(3, Math.floor((pw * 0.5 - 24) / (SLOT + GAP)));
   const rows = Math.max(2, Math.ceil(items.length / cols));
   const ph = Math.min(Math.max(80 + rows * (SLOT + GAP), 80 + recipes.length * 40) + 40, Math.max(220, h - 160));
@@ -42,7 +43,7 @@ function inventoryLayout(game, w, h) {
 }
 
 const inside = (m, r) => m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h;
-const affordable = (game, r) => Object.entries(r.inputs).every(([item, n]) => (game.me?.inventory?.[item] || 0) >= n);
+const affordable = (game, r) => canCraft(r, game.me?.inventory || {});
 
 function select(game, slot) {
   game.selectedSlot = (slot + SLOTS) % SLOTS;
@@ -59,7 +60,7 @@ registerClientSystem('survival-input', (game) => {
   if (!synced) { synced = true; game.selectedSlot = me.selected || 0; }
 
   if (k.pressed('KeyE') || k.pressed('Tab')) {
-    if (!game.ui) game.ui = 'inventory';
+    if (!game.ui) { game.ui = 'inventory'; game._recipeScroll = 0; }
     else if (game.ui === 'inventory') game.ui = null;
   }
   if (game.ui !== 'inventory') picked = null;
@@ -217,6 +218,10 @@ registerHud('inventory-screen', (ctx, game, w, h) => {
   ctx.fillStyle = C.pumpkin;
   ctx.fillText('Inventory', L.x + 16, L.y + 30);
   ctx.fillText('Crafting', L.x + L.pw / 2 + 8, L.y + 30);
+  ctx.font = game.font(11);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = C.ash;
+  ctx.fillText('ready first · best gear first', L.x + L.pw - 16, L.y + 52);
 
   for (const r of L.items) drawSlot(ctx, game, r, r.name, inv[r.name], r.name === picked || inside(m, r));
   if (L.maxItemScroll) {

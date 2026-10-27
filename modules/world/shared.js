@@ -8,7 +8,7 @@ import { fbm, hash2 } from '../../shared/rng.js';
 // solid: blocks movement.  opaque: blocks line of sight (fog of war).
 // harvest: mined by holding left click; hardness = seconds by hand, `tool` mines it faster.
 registerTile('water',  { color: '#2b5d9b', solid: true });
-registerTile('sand',   { color: '#c9b77e' });
+registerTile('sand',   { color: '#c9b77e', harvest: { item: 'sand', becomes: 'gravel' }, hardness: 0.5 });
 registerTile('grass',  { color: '#3f6b35' });
 registerTile('tree',   { color: '#2f5e25', solid: true, opaque: true, harvest: { item: 'wood', becomes: 'grass' }, hardness: 1.8, tool: 'axe' });
 registerTile('stone',  { color: '#7b7b80', solid: true, opaque: true, harvest: { item: 'stone', becomes: 'gravel' }, hardness: 5, tool: 'pickaxe' });
@@ -67,14 +67,46 @@ registerEntityType('power-source', { interactive: true, on: true, color: '#a99af
 registerEntityType('redstone-lamp', { interactive: true, on: false, powered: false, light: 0, lightColor: '#ffe08a' });
 registerKeyHint('RMB lamp', 'switch power');
 
+// Lava is a mineable rocky vein, not a flowing liquid. World owns the special
+// diamond-tier mining behavior; the long fallback hardness prevents ordinary mining.
+registerItem('lava', { color: '#ff681c' });
+registerItem('obsidian', { color: '#8c6ace' });
+registerTile('lava-ore', { color: '#51424b', oreColor: '#ff681c', solid: true, opaque: true,
+  harvest: { item: 'lava', becomes: 'gravel' }, hardness: 1000000, tool: 'pickaxe' });
+registerRecipe('obsidian', { inputs: { lava: 1, diamond: 1 }, output: { obsidian: 1 } });
+registerItem('obsidian-pickaxe', { color: '#a582e8', tool: 'pickaxe', power: 40, gear: 5 });
+registerItem('obsidian-axe', { color: '#a582e8', tool: 'axe', power: 40, gear: 5 });
+registerItem('obsidian-sword', { color: '#a582e8', damage: 10, gear: 5,
+  weapon: { kind: 'melee', reach: 0.9, cooldown: 0.35 } });
+registerRecipe('obsidian-pickaxe', { inputs: { wood: 2, obsidian: 3 }, output: { 'obsidian-pickaxe': 1 } });
+registerRecipe('obsidian-axe', { inputs: { wood: 2, obsidian: 3 }, output: { 'obsidian-axe': 1 } });
+registerRecipe('obsidian-sword', { inputs: { wood: 1, obsidian: 2 }, output: { 'obsidian-sword': 1 } });
+// Glass: blocks movement but not sight (no `opaque`), and lights shine through it.
+// hurts: { damage, every } hits anything with hp standing on the tile, once every `every` seconds.
+registerTile('glass', { color: '#9fd4e0', solid: true, structure: true, harvest: { item: 'glass', becomes: 'gravel' }, hardness: 0.8 });
+registerTile('thorns', { color: '#3b2a22', hurts: { damage: 1, every: 0.8 }, harvest: { item: 'thorns', becomes: 'gravel' }, hardness: 1.5, tool: 'axe' });
+registerTile('lava', { color: '#e2501c', hurts: { damage: 2, every: 0.5 },
+  harvest: { item: 'lava', becomes: 'gravel' }, hardness: 1000000, tool: 'pickaxe' });
+registerItem('sand', { color: '#c9b77e' });
+registerItem('glass', { color: '#9fd4e0', placesTile: 'glass' });
+registerItem('thorns', { color: '#6b4a32', placesTile: 'thorns' });
+registerRecipe('glass', { inputs: { sand: 2 }, output: { glass: 1 } });
+registerRecipe('thorns', { inputs: { wood: 2, stone: 1 }, output: { thorns: 1 } });
+// Tiles cannot shine, so server.js spawns these invisible lights over lava pools.
+registerEntityType('lava-glow', { light: 2.6, lightColor: '#ff5a1a' });
+
+function elevation(world, x, y) {
+  const nx = x / world.w - 0.5, ny = y / world.h - 0.5;
+  const falloff = Math.hypot(nx, ny) * 1.9;                     // edges sink into the sea
+  return fbm(x / 28, y / 28, world.seed, 5) - falloff * falloff * 0.9 + 0.15;
+}
+
 // --- pass 1: island terrain from elevation and moisture noise ---
 registerWorldPass('terrain', (world, rng) => {
   const s = world.seed;
   for (let y = 0; y < world.h; y++) {
     for (let x = 0; x < world.w; x++) {
-      const nx = x / world.w - 0.5, ny = y / world.h - 0.5;
-      const falloff = Math.hypot(nx, ny) * 1.9;                 // edges sink into the sea
-      const elev = fbm(x / 28, y / 28, s, 5) - falloff * falloff * 0.9 + 0.15;
+      const elev = elevation(world, x, y);
       const moist = fbm(x / 20, y / 20, s + 7, 3);
       let tile = 'grass';
       if (elev < 0.30) tile = 'water';
@@ -142,6 +174,20 @@ function generateVeins(world, rng, definitions) {
 }
 registerWorldPass('ores', (world, rng) => generateVeins(world, rng, ORES), { order: 100 });
 registerWorldPass('electric-ores', (world, rng) => generateVeins(world, rng, ELECTRIC_ORES), { order: 110 });
+registerWorldPass('lava-veins', (world, rng) => generateVeins(world, rng,
+  [{ name: 'lava', color: '#ff681c', share: 0.018, minimum: 8 }]), { order: 130 });
+
+// Lava pools in mountain cores, never near spawn. Runs after the ore passes and
+// only replaces plain stone, so ore positions stay where they were.
+registerWorldPass('lava', (world) => {
+  const s = world.seed, cx = world.w / 2, cy = world.h / 2;
+  for (let y = 0; y < world.h; y++) {
+    for (let x = 0; x < world.w; x++) {
+      if (world.tile(x, y).name !== 'stone' || Math.hypot(x - cx, y - cy) <= 10) continue;
+      if (elevation(world, x, y) > 0.74 && fbm(x / 7, y / 7, s + 51, 2) > 0.66) world.set(x, y, 'lava');
+    }
+  }
+}, { order: 120 });
 
 // --- pass 2: pumpkin patches on open grass (it is Halloween) ---
 registerWorldPass('pumpkins', (world) => {
@@ -153,6 +199,19 @@ registerWorldPass('pumpkins', (world) => {
     }
   }
 }, { order: 150 });
+
+// --- thorn brambles along forest edges ---
+registerWorldPass('thorns', (world) => {
+  const s = world.seed, cx = world.w / 2, cy = world.h / 2;
+  const isTree = (x, y) => world.tile(x, y)?.name === 'tree';
+  for (let y = 1; y < world.h - 1; y++) {
+    for (let x = 1; x < world.w - 1; x++) {
+      if (Math.hypot(x - cx, y - cy) < 6 || world.tile(x, y).name !== 'grass') continue;
+      if (!(isTree(x - 1, y) || isTree(x + 1, y) || isTree(x, y - 1) || isTree(x, y + 1))) continue;
+      if (fbm(x / 8, y / 8, s + 61, 2) > 0.62 && hash2(x, y, s + 9) < 0.35) world.set(x, y, 'thorns');
+    }
+  }
+}, { order: 160 });
 
 // TODO(world team): more passes, e.g.
 // registerWorldPass('villages', (world, rng) => { ... }, { order: 200 });
