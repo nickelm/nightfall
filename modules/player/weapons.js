@@ -2,8 +2,22 @@
 // these; items without a `weapon` field use melee. A new weapon of an existing kind
 // is just data in shared.js; a new kind is one more function here.
 import { registries } from '../../shared/registry.js';
+import { relation, clearLine } from './sight.js';
 
 const SUBSTEPS = 3; // per tick, so fast arrows cannot skip past a slime
+const TAUNT_RADIUS = 5;  // tiles: a sword swing draws every foe this close that can see you
+const TAUNT_SECONDS = 4; // creature AI chases `tauntedBy` until `tauntedUntil` (modules/creatures)
+
+// Mark foes within reach and sight as taunted: they go after this player instead
+// of whoever is nearest, which lets a sword fighter shield the mages behind them.
+function taunt(game, player) {
+  const foes = game.near(player.x, player.y, TAUNT_RADIUS, (e) => relation(player, e) === 'foe' && clearLine(game.world, player.x, player.y, e.x, e.y));
+  for (const e of foes) {
+    e.tauntedBy = player.id;
+    e.tauntedUntil = game.time + TAUNT_SECONDS;
+  }
+  if (foes.length) game.broadcast('taunt', { id: player.id, x: player.x, y: player.y, count: foes.length });
+}
 
 export const ATTACKS = {
   // Hit everything with hp in a short arc in front of the player.
@@ -13,6 +27,7 @@ export const ATTACKS = {
     for (const e of game.near(cx, cy, reach, (e) => e.hp > 0 && e.type !== 'player')) {
       if (game.damage(e, def?.damage ?? 1, player)) game.knockback(e, player.x, player.y, 0.6);
     }
+    if (def?.weapon?.kind === 'melee') taunt(game, player); // swords taunt; tools and fists do not
     game.broadcast('swing', { id: player.id });
   },
 

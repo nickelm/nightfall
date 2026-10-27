@@ -7,7 +7,7 @@ import './farm-server.js';
 import './dynamite-server.js';
 import './giant-potion-server.js';
 import './double-sword-server.js';
-import './monsters-server.js';
+import { taunter } from './monsters-server.js';
 import './wildlife-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
@@ -139,6 +139,8 @@ registerSystem('slime-ai', (game, dt) => {
       const d = Math.hypot(p.x - s.x, p.y - s.y);
       if (d < best) { best = d; target = p; }
     }
+    const taunted = taunter(game, s); // a sword swing draws slimes to the fighter
+    if (taunted) { target = taunted; best = Math.hypot(taunted.x - s.x, taunted.y - s.y); }
 
     let dx, dy, speed = s.speed;
     const inside = fireAt(fl, s.x, s.y);

@@ -6,6 +6,7 @@ import { ATTACKS, stepProjectiles } from './weapons.js';
 import './boat-server.js';
 import './portal-server.js';
 import './progression-server.js';
+import './spells-server.js';
 
 const PARRY_WINDOW = 0.25;   // seconds after pressing guard (no shield)
 const PARRY_COOLDOWN = 0.6;  // so mashing RMB does not parry everything
@@ -18,7 +19,7 @@ const HEALTH_REGEN_INTERVAL = 10; // seconds between recovered health points
 // Attack with the held item: its `weapon.kind` picks the attack in weapons.js
 // (melee arc, ranged shot); items without a `weapon` field swing in melee.
 onAction('attack', (game, player) => {
-  if ((player._attackCooldown || 0) > game.time || player.guarding) return;
+  if ((player._attackCooldown || 0) > game.time || player.guarding || player.shelled) return; // a shelled player cannot fight
   const def = registries.items.get(player.hotbar?.[player.selected]);
   const w = def?.weapon;
   const attack = ATTACKS[w?.kind] || ATTACKS.melee;
@@ -59,7 +60,7 @@ registerSystem('stamina', (game, dt) => {
 // Guarding players cancel hits that come from the front.
 onEvent('damage', (game, hit) => {
   const t = hit.target, src = hit.source;
-  if (t.type !== 'player' || !t.guarding || !src || !t.dir) return;
+  if (hit.cancelled || t.type !== 'player' || !t.guarding || !src || !t.dir) return;
   const dx = src.x - t.x, dy = src.y - t.y, len = Math.hypot(dx, dy) || 1;
   if ((dx / len) * t.dir.x + (dy / len) * t.dir.y < 0.35) return; // attack from the side or behind
 
