@@ -75,7 +75,8 @@ export function spawnMonster(game, player, { horde, angle, type, dark, raid } = 
     if (dark) game.broadcast('darkSpawn', { x, y, type });
     return e;
   }
-  return null;
+  // no dark tile nearby (a well-lit base): come from out of sight the usual way instead
+  return dark ? spawnMonster(game, player, { horde, angle, type, raid }) : null;
 }
 
 /** A slime (or blood slime) the way the director places any monster. */
