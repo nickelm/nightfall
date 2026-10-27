@@ -1,14 +1,14 @@
 // TEAM PLAYER (server helper): mana and spells. Owning a staff gives a mana pool;
 // with the staff in hand the client sends `cast { spell, target }` (fireball,
 // firestorm, heal), `cast { spell, x, y }` (fireball or firestorm at empty ground),
-// or `shell { target }` / `shell { stop }` (hold to protect a friend).
-// Every spell needs line of sight to its target (sight.js). Spell numbers live in
-// the registerSpell calls in shared.js.
-import { registries, onAction, onEvent, registerSystem } from '../../shared/registry.js';
+// or `mend { target }` / `mend { stop }` (hold to heal a friend or yourself over time).
+// Spells need line of sight to their target unless they say `sight: false` (sight.js).
+// Spell numbers live in the registerSpell calls in shared.js.
+import { registries, onAction, registerSystem } from '../../shared/registry.js';
 import { relation, clearLine } from './sight.js';
 
 const MAX_MANA = 20;
-const MANA_REGEN = 2.5;  // per second, paused while channeling a shell
+const MANA_REGEN = 2.5;  // per second, paused while a mend is spending mana
 const HIT_RADIUS = 0.5;  // tiles: a fireball explodes this close to a foe
 const SUBSTEPS = 3;
 
@@ -17,10 +17,9 @@ const holdsStaff = (p) => p.hotbar?.[p.selected] === 'staff';
 
 // Why `p` may not aim `spell` at `target` (an entity) or at `point` (empty ground)
 // right now, or null if it may. Cooldown and mana are checked separately (a held
-// shell skips the cooldown). A fireball at empty ground is just a direction.
+// mend skips the cooldown). A fireball at empty ground is just a direction.
 function blocked(game, p, spell, target, point = null) {
   if (!(p.hp > 0) || !holdsStaff(p)) return 'Hold the staff to cast';
-  if (p.shelled) return 'You cannot cast inside a shell';
   if (!spell) return 'No target';
   if (target ? ![].concat(spell.on).includes(relation(p, target)) : !(point && spell.free)) return 'No target';
   if (!target && spell.free === 'direction') return null;
@@ -88,58 +87,61 @@ onAction('cast', (game, p, { spell: name, target: id, x, y } = {}) => {
   game.broadcast('cast', { spell: name, id: p.id, x: p.x, y: p.y, target: target?.id ?? null, tx: at.x, ty: at.y, amount: spell.amount });
 });
 
-onAction('shell', (game, p, { target: id, stop } = {}) => {
-  if (stop) { p._shellTarget = null; p.channeling = null; return; }
-  const spell = registries.spells.get('shell');
+onAction('mend', (game, p, { target: id, stop } = {}) => {
+  if (stop) { p._mendTarget = null; p.channeling = null; return; }
+  const spell = registries.spells.get('mend');
   const target = game.entities.get(id);
   const reason = blocked(game, p, spell, target);
   if (reason) return fail(game, p, reason);
   if ((p.mana || 0) < spell.cost) return fail(game, p, 'Not enough mana');
   p.mana -= spell.cost;
-  p._shellTarget = target.id;
+  p._mendTarget = target.id;
   p.channeling = target.id;
-  game.broadcast('cast', { spell: 'shell', id: p.id, x: p.x, y: p.y, target: target.id, tx: target.x, ty: target.y });
+  game.broadcast('cast', { spell: 'mend', id: p.id, x: p.x, y: p.y, target: target.id, tx: target.x, ty: target.y });
 });
 
-// Owning a staff gives a mana pool, which refills unless you are holding a shell.
+// Owning a staff gives a mana pool, which refills unless a mend is spending it.
 registerSystem('mana', (game, dt) => {
   for (const p of game.players()) {
     p.maxMana = game.has(p, 'staff') ? MAX_MANA : 0;
     p.mana = Math.min(p.maxMana, p.mana || 0);
-    if (!p._shellTarget) p.mana = Math.min(p.maxMana, p.mana + MANA_REGEN * dt);
+    if (!p._mending) p.mana = Math.min(p.maxMana, p.mana + MANA_REGEN * dt);
   }
 });
 
-// Each tick, every channeling caster re-checks its target and pays for the shell;
-// then `shelled` is set on exactly the players someone is still protecting.
-registerSystem('shell', (game, dt) => {
-  const spell = registries.spells.get('shell');
-  const protectedIds = new Set();
+// Each tick, every channeling caster re-checks its target and, while the target is
+// hurt, pays mana and heals it a little (in whole points, as they add up). `mended`
+// is set on exactly the players someone is mending, so clients draw the bubble.
+registerSystem('mend', (game, dt) => {
+  const spell = registries.spells.get('mend');
+  const mended = new Set();
   for (const p of game.players()) {
-    if (p._shellTarget == null) { p.channeling = null; continue; }
-    const target = game.entities.get(p._shellTarget);
+    p._mending = false;
+    if (p._mendTarget == null) { p.channeling = null; continue; }
+    const target = game.entities.get(p._mendTarget);
     let reason = blocked(game, p, spell, target);
-    if (!reason) {
+    if (!reason && target.hp < target.maxHp) {
+      p._mending = true;
       p.mana -= spell.drain * dt;
       if (p.mana <= 0) { p.mana = 0; reason = 'Out of mana'; }
+      target._mendHp = (target._mendHp || 0) + spell.rate * dt;
+      const n = Math.floor(target._mendHp);
+      if (n > 0) {
+        target._mendHp -= n;
+        target.hp = Math.min(target.maxHp, target.hp + n);
+        game.broadcast('mended', { id: target.id, amount: n });
+      }
     }
     if (reason) {
-      p._shellTarget = null;
+      p._mendTarget = null;
       p.channeling = null;
-      fail(game, p, `Shell broke: ${reason.toLowerCase()}`);
+      fail(game, p, `Mend stopped: ${reason.toLowerCase()}`);
       continue;
     }
     p.channeling = target.id;
-    protectedIds.add(target.id);
+    mended.add(target.id);
   }
-  for (const p of game.players()) p.shelled = protectedIds.has(p.id);
-});
-
-// A shelled player takes no damage at all.
-onEvent('damage', (game, hit) => {
-  if (!hit.target.shelled || hit.cancelled) return;
-  hit.cancelled = true;
-  game.broadcast('shellHit', { id: hit.target.id, x: hit.target.x, y: hit.target.y });
+  for (const p of game.players()) p.mended = mended.has(p.id);
 });
 
 // Fireballs home in on their target and explode on the first foe or wall they touch.

@@ -1,4 +1,4 @@
-// Real multiplayer server: craft a staff, then fireball, line of sight, heal, focus shell, firestorm.
+// Real multiplayer server: craft a staff, then fireball, line of sight, heal, mend, taunt, firestorm, nova.
 import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 process.env.PORT = '8138'; process.env.SEED = '4242'; process.env.START_TIME = '10';
@@ -70,17 +70,19 @@ try {
   await until(() => pb.hp === 4 + 2 * heal.amount);
   pb.hp = 8;
 
-  // focus shell: the friend takes no damage and cannot attack until released
-  pa.mana = 20;
-  a.action('shell', { target: pb.id }); await until(() => pb.shelled && pa.channeling === pb.id);
-  assert.equal(game.damage(pb, 3, null), 0, 'shelled players take no damage');
-  assert.equal(pb.hp, 8);
-  const cooldown = pb._attackCooldown;
-  b.action('attack'); await sleep(150);
-  assert.equal(pb._attackCooldown, cooldown, 'shelled players cannot attack');
-  assert.ok(pa.mana < 20 - 2, 'holding a shell drains mana');
-  a.action('shell', { stop: true }); await until(() => !pb.shelled && pa.channeling == null);
-  assert.equal(game.damage(pb, 3, null), 3, 'damage lands again after the shell');
+  // mend (hold LMB on a friend): heals over time while held, spending a little mana
+  pa.mana = 20; pb.hp = 4;
+  a.action('mend', { target: pb.id }); await until(() => pb.mended && pa.channeling === pb.id);
+  await until(() => pb.hp >= 7, 4000);
+  assert.ok(pa.mana < 20, 'mending spends mana');
+  assert.ok(b.events.some(m => m.name === 'mended'));
+  a.action('mend', { stop: true }); await until(() => !pb.mended && pa.channeling == null);
+  const mendedTo = pb.hp; await sleep(800);
+  assert.equal(pb.hp, mendedTo, 'letting go stops the mend');
+  pb.hp = 3; // and you can mend yourself too
+  a.action('mend', { target: pa.id }); pa.hp = 5;
+  await until(() => pa.hp >= 6 && pa.mended);
+  a.action('mend', { stop: true }); pb.hp = 8;
 
   // a sword swing taunts nearby foes: they go after the fighter, not the nearest player
   const zt = frozen(233.5, 241.5); // nearer the mage than the fighter
@@ -115,6 +117,6 @@ try {
   assert.ok(pa.hp >= 10, 'the nova spares its caster'); // a kill may level them up, which adds health
   assert.equal(pb.hp, hpB - nova.friendDamage, 'and friends caught in it');
   assert.ok(a.events.some(m => m.name === 'nova'));
-  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal (friend and self), focus shell, sword taunt, firestorm at a point, nova');
+  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal (friend and self), mend (friend and self), sword taunt, firestorm at a point, nova');
 } catch (err) { console.error(err); process.exitCode = 1; }
 finally { sockets.forEach(ws => ws.close()); setTimeout(() => process.exit(process.exitCode || 0), 100); }

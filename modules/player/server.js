@@ -19,7 +19,7 @@ const HEALTH_REGEN_INTERVAL = 10; // seconds between recovered health points
 // Attack with the held item: its `weapon.kind` picks the attack in weapons.js
 // (melee arc, ranged shot); items without a `weapon` field swing in melee.
 onAction('attack', (game, player) => {
-  if ((player._attackCooldown || 0) > game.time || player.guarding || player.shelled) return; // a shelled player cannot fight
+  if ((player._attackCooldown || 0) > game.time || player.guarding) return;
   const def = registries.items.get(player.hotbar?.[player.selected]);
   const w = def?.weapon;
   const attack = ATTACKS[w?.kind] || ATTACKS.melee;

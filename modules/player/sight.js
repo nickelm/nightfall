@@ -4,7 +4,7 @@
 
 // Which spell each mouse button casts on a foe, a friend, or yourself while holding the staff.
 export const SPELL_FOR = {
-  left: { foe: 'fireball', friend: 'shell', self: 'heal' },
+  left: { foe: 'fireball', friend: 'mend', self: 'mend' },
   right: { foe: 'firestorm', friend: 'heal', self: 'nova' },
 };
 
