@@ -21,11 +21,17 @@ All hostile creatures take one damage per second while exposed to an entity's
 light (including player torches, lamps, fires, and lava glow). Multiple lights do
 not stack; opaque walls block the effect. Ordinary hit, kill, and loot rules apply.
 
+Director and split spawns cannot overlap constructed blocks, including open doors,
+redstone wire, and placed thorns. Ordinary ground left after mining remains spawnable.
+
 ## Raising animals
 
 Pigs, sheep, chickens, and cows appear in the field. Right-click one to catch it as a
 carried item. Craft an `animal-pen` from five wood and place it with right-click; each
 pen holds one animal. Hold the caught animal and right-click the pen to put it inside.
+Housed animals are stored inside the pen rather than wandering as separate entities.
+Free animals check their whole movement path against solid walls and closed doors,
+including during long ticks; they can leave through open doors or gaps.
 
 Hold a pumpkin and right-click an occupied pen to feed it for 60 seconds. While fed,
 the animal grows for 30 seconds and then produces one item every 20 seconds, up to

@@ -22,7 +22,7 @@ async function until(fn, ms = 8000) {
 async function start(restore) {
   let log = '';
   child = fork('modules/world/test-redstone-fixture.js', [], {
-    env: { ...process.env, PORT: '8109', SEED: '4242', START_TIME: '10', STATE_FILE: stateFile, RESTORE: restore ? '1' : '' },
+    env: { ...process.env, PORT: '8109', SEED: '4242', START_TIME: '10', STATE_FILE: stateFile, MEGA_FIXTURE: '1', RESTORE: restore ? '1' : '' },
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });
   child.stdout.on('data', data => { log += data; });
@@ -66,11 +66,11 @@ let failed = false;
 try {
   await start(false);
   const a = await connect();
-  await until(() => a.me().inventory['redstone-wire'] === 2 && a.me().inventory['redstone-lamp'] === 1);
+  await until(() => a.me().inventory['redstone-wire'] === 2 && a.me().inventory['redstone-lamp'] === 2);
   a.move(81.5, 79.5); await until(() => a.me().x === 81.5 && a.me().y === 79.5);
-  await equip(a, 'power-crystal');
+  await equip(a, 'redstone-lamp');
   a.action('use', { x: 82, y: 80 });
-  await until(() => a.snap.entities.some(e => e.type === 'power-source'));
+  await until(() => a.snap.entities.some(e => e.type === 'redstone-lamp' && Math.floor(e.x) === 82));
   await equip(a, 'redstone-wire');
   a.action('use', { x: 83, y: 80 });
   await until(() => a.world.tile(83, 80).powered);
@@ -80,7 +80,7 @@ try {
   a.move(84.5, 79.5); await until(() => a.me().x === 84.5);
   await equip(a, 'redstone-lamp');
   a.action('use', { x: 85, y: 80 });
-  await until(() => a.snap.entities.some(e => e.type === 'redstone-lamp' && e.powered));
+  await until(() => a.snap.entities.some(e => e.type === 'redstone-lamp' && Math.floor(e.x) === 85 && e.powered));
   const empty = a.me().hotbar.findIndex(item => !item);
   assert.notEqual(empty, -1);
   a.action('select', { slot: empty }); await until(() => a.me().selected === empty);
@@ -93,8 +93,8 @@ try {
   const b = await connect();
   await until(() => b.world.tile(83, 80).powered && b.world.tile(84, 80).powered &&
     b.snap.entities.some(e => e.type === 'redstone-lamp' && e.powered && e.light === 6));
-  assert.equal(b.snap.entities.filter(e => e.type === 'power-source').length, 1);
-  console.log('PASS powered wire, crystal, lamp, and light survive a real server restart');
+  assert.equal(b.snap.entities.filter(e => e.type === 'redstone-lamp').length, 2);
+  console.log('PASS powered wire and lamps survive a real server restart');
 
   b.move(82.5, 79.5); await until(() => b.me().x === 82.5);
   const slot = b.me().hotbar.findIndex(item => !item);
@@ -103,7 +103,7 @@ try {
   b.action('interact', { x: 82, y: 80 });
   await until(() => !b.world.tile(83, 80).powered && !b.world.tile(84, 80).powered &&
     b.snap.entities.some(e => e.type === 'redstone-lamp' && !e.powered && e.light === 0));
-  console.log('PASS the restored power source still switches the complete circuit off');
+  console.log('PASS the restored source lamp still switches the complete circuit off');
   b.move(84.5, 79.5); await until(() => b.me().x === 84.5);
   b.action('interact', { x: 85, y: 80 });
   await until(() => b.world.tile(83, 80).powered && b.snap.entities.some(e => e.type === 'redstone-lamp' && e.on && e.light === 6));
@@ -114,6 +114,33 @@ try {
   c.action('interact', { x: 85, y: 80 });
   await until(() => !c.world.tile(83, 80).powered && c.snap.entities.some(e => e.type === 'redstone-lamp' && !e.on && e.light === 0));
   console.log('PASS a self-powered lamp remains on after restart and can still switch off');
+
+  await equip(c, 'mega-lamp'); c.action('use', { x: 84, y: 81 });
+  await until(() => c.snap.entities.some(e => e.lampItem === 'mega-lamp' && e.light === 15) && c.world.tile(84, 80).powered);
+  await stop(); await start(true);
+  const d = await connect();
+  await until(() => d.snap.entities.some(e => e.lampItem === 'mega-lamp' && e.on && e.light === 15) && d.world.tile(84, 80).powered);
+  const emptySlot = d.me().hotbar.findIndex(item => !item);
+  assert.notEqual(emptySlot, -1);
+  d.action('select', { slot: emptySlot }); await until(() => d.me().selected === emptySlot);
+  d.action('interact', { x: 84, y: 81 });
+  await until(() => d.snap.entities.some(e => e.lampItem === 'mega-lamp' && !e.on && e.light === 0) && !d.world.tile(84, 80).powered);
+  console.log('PASS the mega lamp keeps its expanded radius and switch after a real restart');
+
+  await stop();
+  fs.writeFileSync(stateFile, JSON.stringify({ seed: 4242, time: 10, nextId: 100, edits: [],
+    entities: [{ id: 22, type: 'power-source', x: 82.5, y: 80.5, on: true, interactive: true }],
+    players: [{ id: 1, type: 'player', name: 'CircuitRestore', x: 80.5, y: 79.5,
+      inventory: { 'power-crystal': 2 }, hotbar: ['power-crystal', null, null, null, null, null, null, null, null],
+      selected: 0, _redstoneTestKit: true, _kitVersion: 2 }] }));
+  await start(true);
+  const legacy = await connect();
+  await until(() => legacy.me().inventory['redstone-lamp'] === 2 &&
+    legacy.snap.entities.some(e => e.type === 'redstone-lamp' && e.x === 82.5 && e.on && e.light === 6));
+  assert.ok(!legacy.me().inventory['power-crystal']);
+  assert.equal(legacy.me().hotbar[0], 'redstone-lamp');
+  assert.ok(!legacy.snap.entities.some(e => e.type === 'power-source'));
+  console.log('PASS saved crystals migrate to usable lamps while preserving source switch state');
 } catch (err) { failed = true; console.error(err); }
 finally {
   clients.forEach(c => c.ws.close());

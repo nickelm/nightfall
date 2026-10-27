@@ -21,11 +21,15 @@ redstone and two stone). Right-click to place wire or a lamp on grass, sand, or
 gravel. A newly placed lamp is on and supplies its own power; right-click it to
 switch its power supply on or off. It powers adjacent wire, which conducts in the
 four cardinal directions. A switched-off lamp lights up when fed by another active
-lamp or an older power crystal, so all connected sources must be off to darken it.
+lamp, so all connected sources must be off to darken it.
 Lamps prevent monster spawning within their light, but do not repel monsters.
-Hold a pickaxe and right-click a lamp or older power crystal to pick it up; mine
-wire to retrieve it and restore its ground. Existing crystal ores and sources are
-preserved for compatibility with saved worlds; crystals are not needed for lamps.
+Hold a pickaxe and right-click a lamp to pick it up; mine wire to retrieve it and
+restore its ground. Removed crystals in older saves become ordinary lamps: placed
+sources retain their switch state, and carried crystals convert when the player joins.
+
+Craft four redstone lamps into one mega lamp. It behaves like an ordinary lamp,
+including its switch, wiring, monster protection and pickaxe pickup, but its light
+radius is 15 tiles instead of 6. Normal player vision range and obstacles still apply.
 
 ## Lava and obsidian
 

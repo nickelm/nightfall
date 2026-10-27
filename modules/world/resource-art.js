@@ -1,7 +1,7 @@
 import { registerDrawer } from '../../shared/registry.js';
 import { hash2 } from '../../shared/rng.js';
 
-for (const name of ['iron', 'gold', 'diamond', 'redstone', 'power-crystal', 'lava']) {
+for (const name of ['iron', 'gold', 'diamond', 'redstone', 'lava']) {
   registerDrawer(`tile:${name}-ore`, (ctx, tile, x, y, size, tx, ty) => {
     ctx.fillStyle = '#3e424e';
     ctx.fillRect(x, y, size, size);

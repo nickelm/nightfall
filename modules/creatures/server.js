@@ -22,6 +22,21 @@ const fireAt = (list, x, y, pad = 0) => list.find((f) => Math.hypot(f.x - x, f.y
 const bodyRadius = (size) => 0.3 * (size || 1); // collision radius in tiles; slimes are size 1
 const typeSize = (type) => registries.entityTypes.get(type)?.defaults?.size || 1;
 
+// A spawn footprint must avoid player-built tiles, including walkable ones such
+// as open doors, wires and placed thorns. Ordinary mined ground is still valid.
+function overlapsBuiltBlock(world, x, y, radius) {
+  for (let ty = Math.floor(y - radius); ty <= Math.floor(y + radius); ty++) {
+    for (let tx = Math.floor(x - radius); tx <= Math.floor(x + radius); tx++) {
+      const tile = world.tile?.(tx, ty);
+      if (!tile) continue;
+      if (tile.structure || tile.redstoneWire) return true;
+      if (world.edits?.has(`${tx},${ty}`) &&
+          [...registries.items.values()].some(item => item.placesTile === tile.name)) return true;
+    }
+  }
+  return false;
+}
+
 // Where and when monsters appear is up to the game director (director.js).
 // This is how it spawns one monster near a player: out of sight and out of protected light.
 //   horde  further out, all from the same direction (`angle`), and hunting from afar
@@ -50,7 +65,7 @@ export function spawnMonster(game, player, { horde, angle, type, dark, raid } = 
       const d = horde ? 13 + Math.random() * 3 : 9 + Math.random() * 5;
       x = player.x + Math.cos(a) * d; y = player.y + Math.sin(a) * d;
     }
-    if (game.world.blocked(x, y, r) || (!raid && fireAt(fl, x, y, 1)) ||
+    if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r) || (!raid && fireAt(fl, x, y, 1)) ||
         lamps.some((lamp) => Math.hypot(lamp.x - x, lamp.y - y) < lamp.light)) continue;
     if (dark && isLit(game, x, y, lights)) continue;
     const props = { x, y };
@@ -167,13 +182,16 @@ onEvent('killed', (game, victim) => dropLoot(game, victim));
 onEvent('killed', (game, victim) => {
   if (!victim.splitsInto || !registries.entityTypes.get(victim.splitsInto)) return;
   const n = victim.splitCount ?? 2, r = bodyRadius(typeSize(victim.splitsInto));
+  let spawned = 0;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + Math.random();
     let x = victim.x + Math.cos(a) * 0.4, y = victim.y + Math.sin(a) * 0.4;
-    if (game.world.blocked(x, y, r)) { x = victim.x; y = victim.y; }
+    if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r)) { x = victim.x; y = victim.y; }
+    if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r)) continue;
     game.spawn(victim.splitsInto, { x, y, aggro: victim.aggro, _nextBite: game.time + 0.8 });
+    spawned++;
   }
-  game.broadcast('split', { id: victim.id, x: victim.x, y: victim.y, into: victim.splitsInto, count: n });
+  if (spawned) game.broadcast('split', { id: victim.id, x: victim.x, y: victim.y, into: victim.splitsInto, count: spawned });
 });
 registerSystem('drops', updateDrops);
 

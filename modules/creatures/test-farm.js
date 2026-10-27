@@ -131,6 +131,26 @@ try {
   a.action('interact', { x: 82, y: 80 });
   await until(() => !game.entities.has(pen.id) && a.me().inventory['animal-pen'] === 1);
   console.log('PASS  empty pens can be picked up and moved');
+
+  // Exercise the live tick loop, not just the movement helper: all species stay
+  // within a closed wall enclosure as they wander and both clients see them.
+  for (let y = 90; y <= 98; y++) for (let x = 92; x <= 100; x++) {
+    game.setTile(x, y, x === 92 || x === 100 || y === 90 || y === 98 ? 'wood-wall' : 'grass');
+  }
+  const enclosed = Object.keys(ANIMALS).map((species, i) => game.spawn(species, {
+    x: 97.5, y: 92.5 + i, speed: 4, _walk: { x: 1, y: 0, until: game.time + 60 },
+  }));
+  const end = Date.now() + 2000;
+  while (Date.now() < end) {
+    for (const animal of enclosed) {
+      assert.ok(animal.x > 93 && animal.x < 100 && animal.y > 91 && animal.y < 98,
+        `${animal.type} stays inside the walls`);
+    }
+    await sleep(25);
+  }
+  await until(() => enclosed.every(animal => b.snap.entities.some(e => e.id === animal.id)));
+  enclosed.forEach(animal => game.despawn(animal.id));
+  console.log('PASS  all four species remain inside a closed enclosure on the live server');
 } catch (err) { failed = true; console.error(err); }
 finally { clients.forEach(c => c.ws.close()); }
 console.log(failed ? 'Animal checks failed' : 'All animal checks passed');

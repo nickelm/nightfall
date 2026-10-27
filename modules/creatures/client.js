@@ -4,6 +4,7 @@ import { registries, registerClientSystem, registerHud, registerDrawer, onEvent 
 import './farm-art.js';
 import './dynamite-art.js';
 import './monsters-art.js';
+import './first-person.js';
 
 // Blood slime: the slime drawing (from Art) scaled up by `size`, in the slime's own red.
 // Art can register its own 'blood-slime' drawer to replace this.
@@ -40,6 +41,7 @@ onEvent('net:lightBurn', (game, { x, y }) => {
   (game._lightBurnEffects ||= []).push({ x, y, until: performance.now() + 700 });
 });
 registerHud('light-burn-effects', (ctx, game) => {
+  if (game.settings.view === 'first') return; // world-space effect: not in first person
   const now = performance.now();
   game._lightBurnEffects = (game._lightBurnEffects || []).filter(effect => effect.until > now);
   for (const effect of game._lightBurnEffects) {

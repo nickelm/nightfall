@@ -7,6 +7,7 @@ const PRODUCT_SECONDS = 20;
 const FEED_SECONDS = 60;
 const MAX_FEED = 120;
 const MAX_STOCK = 5;
+const ANIMAL_MOVE_STEP = 0.1; // never skip across a one-tile wall, even on a long tick
 const names = Object.keys(ANIMALS);
 const held = p => p.hotbar?.[p.selected] || null;
 const atTile = (e, x, y) => Math.floor(e.x) === x && Math.floor(e.y) === y;
@@ -118,11 +119,16 @@ registerSystem('animal-wander', (game, dt) => {
       const angle = Math.random() * Math.PI * 2;
       animal._walk = { x: Math.cos(angle), y: Math.sin(angle), until: game.time + 2 + Math.random() * 4 };
     }
-    const x = animal.x + animal._walk.x * animal.speed * dt;
-    const y = animal.y + animal._walk.y * animal.speed * dt;
-    if (!game.world.blocked(x, y) && !game.near(x, y, 0.8, e => e.interactive && e !== animal).length) {
+    const dx = animal._walk.x * animal.speed * dt, dy = animal._walk.y * animal.speed * dt;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / ANIMAL_MOVE_STEP));
+    for (let i = 0; i < steps; i++) {
+      const x = animal.x + dx / steps, y = animal.y + dy / steps;
+      if (game.world.blocked(x, y) || game.near(x, y, 0.8, e => e.interactive && e !== animal).length) {
+        animal._walk.until = 0;
+        break;
+      }
       animal.x = x; animal.y = y;
-    } else animal._walk.until = 0;
+    }
   }
 });
 
