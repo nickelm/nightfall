@@ -7,6 +7,7 @@
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 import { updateMovementControl } from './movement-control.js';
+import './portal-art.js';
 
 const REACH = 1.8;       // tiles: mining and swinging
 const PLACE_REACH = 2.5; // tiles: right-click use and place
@@ -44,6 +45,18 @@ registerClientSystem('movement', (game, dt) => {
   if (!me) return;
   const k = game.input;
   const free = !game.ui; // a panel (inventory, settings) takes the mouse
+  if (me.portalId != null) {
+    if (mining) { game.sendAction('mine', { stop: true }); mining = null; }
+    if (guarding) { guarding = false; game.sendAction('guard', { on: false }); }
+    if (running) { running = false; game.sendAction('run', { on: false }); }
+    if (free && k.pressed('Space')) game.sendAction('portalExit');
+    else if (free) {
+      for (const [key, direction] of [['KeyW', 'up'], ['KeyA', 'left'], ['KeyS', 'down'], ['KeyD', 'right']]) {
+        if (k.pressed(key)) { game.sendAction('portalMove', { direction }); break; }
+      }
+    }
+    return;
+  }
   if (free && k.pressed('KeyB')) game.sendAction('disembark');
 
   // --- face the mouse first, so facing-relative movement uses this frame's aim ---
