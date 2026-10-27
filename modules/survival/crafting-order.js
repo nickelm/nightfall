@@ -1,4 +1,16 @@
 // Keep crafting choices in registration order when their priority is the same.
+export const CRAFT_CATEGORIES = ['All', 'Weapons', 'Tools', 'Buildings', 'Lighting', 'Travel', 'Animals', 'Other'];
+export function recipeCategory(recipe, items) {
+  const name = Object.keys(recipe.output || {})[0] || recipe.places || recipe.name;
+  const item = items.get(name);
+  if (item?.tool) return 'Tools';
+  if (item?.weapon || item?.damage || name === 'shield' || name === 'arrow' || name === 'dynamite') return 'Weapons';
+  if (['cabin', 'house', 'hanok', 'road', 'door', 'glass', 'thorns'].includes(name)) return 'Buildings';
+  if (['campfire', 'jack-o-lantern', 'redstone-wire', 'redstone-lamp', 'mega-lamp'].includes(name)) return 'Lighting';
+  if (name === 'boat' || name === 'portal') return 'Travel';
+  if (name === 'animal-pen') return 'Animals';
+  return 'Other';
+}
 export function canCraft(recipe, inventory) {
   return Object.entries(recipe.inputs || {}).every(([item, count]) => (inventory[item] || 0) >= count);
 }

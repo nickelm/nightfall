@@ -31,6 +31,13 @@ Crafting sorts recipes that are affordable first. Within each group, higher
 equipment tiers come first, then damage and tool power; ties retain their original
 order. The list updates as inventory changes and remains scrollable.
 
+The inventory/crafting panel expands to 1120 pixels on desktop, with separate
+inventory, category and recipe columns. Categories are All, Weapons, Tools,
+Buildings, Lighting, Travel, Animals and Other. Category changes reset recipe
+scroll, while each category retains ready-first/best-gear-first sorting. Recipe
+rows show owned/required ingredients. Compact screens wrap category tabs; short
+compact screens cycle categories with one button.
+
 - `shared.js`: items `wood` and `stone` (right click places them as `wood-wall` and `stone-block` through `placesTile`), `pumpkin`, `shield` (`equip: 'offhand'`), the tools `axe` and `pickaxe` (`tool`, `power: 4`), and the placeable `campfire` and `jack-o-lantern` (`places`). Recipes: campfire (5 wood), jack-o-lantern (1 pumpkin, 1 wood), axe (3 wood), pickaxe (4 wood), shield (3 wood, 2 stone). Entity types `campfire` (`fuel: 45`, `maxFuel: 90`, `light: 6`, `repels: true`, `interactive: true`) and `jack-o-lantern` (`light: 3.5`, `scares: 2`).
 - `server.js`: the `mine` action and `mining` system (time = tile `hardness`, divided by the tool's `power` when the tool matches); the `use` action (place the held item if the tile is free); `interact` (right click on a campfire feeds it wood, +20 s of fuel); `craft`; the hotbar (`select` and `hotbar` actions, and a system that fills free slots with new items); the `fire` system; and `lantern-courage`, which turns a jack-o-lantern's `repels` off while more than two monsters are near.
 - `client.js`: 1–9 and the wheel select a hotbar slot, E or Tab opens the inventory and crafting screen, C and V quick-craft; the hotbar, hearts, the target outline, and a ghost where a held block would go.
