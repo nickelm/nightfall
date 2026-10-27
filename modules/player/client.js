@@ -44,6 +44,7 @@ registerClientSystem('movement', (game, dt) => {
   if (!me) return;
   const k = game.input;
   const free = !game.ui; // a panel (inventory, settings) takes the mouse
+  if (free && k.pressed('KeyB')) game.sendAction('disembark');
 
   // --- face the mouse first, so facing-relative movement uses this frame's aim ---
   if (free && k.mouse.active) {
@@ -101,8 +102,9 @@ registerClientSystem('movement', (game, dt) => {
     dx /= len; dy /= len;
     const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * dt;
     // move each axis separately so we slide along walls
-    if (!game.world.blocked(me.x + dx * step, me.y)) me.x += dx * step;
-    if (!game.world.blocked(me.x, me.y + dy * step)) me.y += dy * step;
+    const blocked = (x, y) => me.sailing ? boatBlocked(game.world, x, y) : game.world.blocked(x, y);
+    if (!blocked(me.x + dx * step, me.y)) me.x += dx * step;
+    if (!blocked(me.x, me.y + dy * step)) me.y += dy * step;
     if (!k.mouse.active) me.dir = { x: dx, y: dy };
   }
 
@@ -129,6 +131,25 @@ registerClientSystem('movement', (game, dt) => {
     game.sendAction('mine', { stop: true });
   }
   if (free && !target && (k.clicked(0) || k.pressed('Space'))) game.sendAction('attack', {});
+});
+
+// A boarded player can cross water but still collides with walls and obstacles.
+export function boatBlocked(world, x, y, r = 0.3) {
+  return [[-r,-r],[-r,r],[r,-r],[r,r]].some(([dx, dy]) => {
+    const tile = world.tile(x + dx, y + dy);
+    return !tile || (tile.solid && tile.name !== 'water');
+  });
+}
+
+onEvent('net:boatMessage', (game, { text }) => game.notify(text, 4, game.theme.colors.candle));
+
+registerDrawer('item:boat', (ctx, item, x, y, size) => {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-0.45);
+  ctx.fillStyle = '#593822'; ctx.beginPath(); ctx.ellipse(0, 0, size * 0.4, size * 0.23, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = item.color; ctx.beginPath(); ctx.ellipse(0, 0, size * 0.32, size * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#dfb27b'; ctx.lineWidth = Math.max(1, size * 0.04);
+  ctx.beginPath(); ctx.moveTo(-size * 0.1, -size * 0.13); ctx.lineTo(-size * 0.1, size * 0.13);
+  ctx.moveTo(size * 0.12, -size * 0.13); ctx.lineTo(size * 0.12, size * 0.13); ctx.stroke(); ctx.restore();
 });
 
 // A faint wedge in front of your character: where swings, mining, and placing land.

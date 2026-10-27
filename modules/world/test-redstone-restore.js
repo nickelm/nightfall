@@ -136,7 +136,7 @@ try {
   await start(true);
   const legacy = await connect();
   await until(() => legacy.me().inventory['redstone-lamp'] === 2 &&
-    legacy.snap.entities.some(e => e.type === 'redstone-lamp' && e.x === 82.5 && e.on && e.light === 6));
+    legacy.snap.entities.some(e => e.type === 'redstone-lamp' && e.x === 242.5 && e.y === 240.5 && e.on && e.light === 6));
   assert.ok(!legacy.me().inventory['power-crystal']);
   assert.equal(legacy.me().hotbar[0], 'redstone-lamp');
   assert.ok(!legacy.snap.entities.some(e => e.type === 'power-source'));

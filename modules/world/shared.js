@@ -13,6 +13,22 @@ registerTile('grass',  { color: '#3f6b35' });
 registerTile('tree',   { color: '#2f5e25', solid: true, opaque: true, harvest: { item: 'wood', becomes: 'grass' }, hardness: 1.8, tool: 'axe' });
 registerTile('stone',  { color: '#7b7b80', solid: true, opaque: true, harvest: { item: 'stone', becomes: 'gravel' }, hardness: 5, tool: 'pickaxe' });
 registerTile('gravel', { color: '#5e5a55' });
+registerTile('snow', { color: '#cedfe4' });
+registerTile('snow-tree', { color: '#476f67', solid: true, opaque: true,
+  harvest: { item: 'wood', becomes: 'snow' }, hardness: 1.8, tool: 'axe' });
+registerTile('desert-tree', { color: '#9d8050', solid: true, opaque: true,
+  harvest: { item: 'wood', becomes: 'sand' }, hardness: 1.8, tool: 'axe' });
+for (const rock of [
+  { name: 'granite', color: '#a57d75', ground: 'gravel', hardness: 6 },
+  { name: 'sandstone', color: '#c8a76b', ground: 'sand', hardness: 4 },
+  { name: 'froststone', color: '#9eafb8', ground: 'snow', hardness: 6 },
+]) {
+  registerItem(rock.name, { color: rock.color, placesTile: `${rock.name}-block` });
+  registerTile(`${rock.name}-rock`, { color: rock.color, solid: true, opaque: true,
+    harvest: { item: rock.name, becomes: rock.ground }, hardness: rock.hardness, tool: 'pickaxe' });
+  registerTile(`${rock.name}-block`, { color: rock.color, solid: true, opaque: true, structure: true,
+    harvest: { item: rock.name, becomes: rock.ground }, hardness: rock.hardness, tool: 'pickaxe' });
+}
 registerTile('pumpkin', { color: '#e8761e', solid: true, harvest: { item: 'pumpkin', becomes: 'grass' }, hardness: 0.6 });
 // blocks players place with right click (wood and stone items carry placesTile); structure: counts as settlement
 registerTile('wood-wall',   { color: '#7a5230', solid: true, opaque: true, structure: true, harvest: { item: 'wood', becomes: 'gravel' }, hardness: 2.5, tool: 'axe' });
@@ -52,7 +68,7 @@ for (const ore of ELECTRIC_ORES.filter(ore => ore.name === 'redstone')) {
 }
 
 // Separate wire tiles retain the original ground when a wire is picked up.
-for (const [ground, color] of [['grass', '#3f6b35'], ['sand', '#c9b77e'], ['gravel', '#5e5a55']]) {
+for (const [ground, color] of [['grass', '#3f6b35'], ['sand', '#c9b77e'], ['gravel', '#5e5a55'], ['snow', '#cedfe4']]) {
   for (const powered of [false, true]) {
     registerTile(`redstone-wire-${ground}${powered ? '-powered' : ''}`, {
       color, wireGround: ground, redstoneWire: true, powered,
@@ -114,8 +130,8 @@ registerWorldPass('terrain', (world, rng) => {
       let tile = 'grass';
       if (elev < 0.30) tile = 'water';
       else if (elev < 0.34) tile = 'sand';
-      else if (elev > 0.64) tile = 'stone';
-      else if (moist > 0.56 && hash2(x, y, s) < 0.45) tile = 'tree';   // forests
+      else if (elev > (world.regionKind === 'mineral' ? 0.52 : 0.64)) tile = 'stone';
+      else if (moist > (world.regionKind === 'forest' ? 0.50 : 0.56) && hash2(x, y, s) < 0.45) tile = 'tree';   // forests
       else if (hash2(x, y, s + 1) < 0.02) tile = 'tree';               // lone trees
       world.set(x, y, tile);
     }
@@ -147,7 +163,9 @@ function generateVeins(world, rng, definitions) {
 
   // Place rare minerals first, growing adjacent tiles into veins of 2-5.
   for (const ore of [...definitions].reverse()) {
-    const target = Math.min(candidates.length, Math.max(ore.minimum, Math.round(candidates.length * ore.share)));
+    const multiplier = world.regionKind === 'mineral' && ore.name !== 'reserved-electric' ? (ore.name === 'redstone' ? 5.1 : 3) : 1;
+    const minimum = world.regionKind === 'mineral' ? ({ iron: 400, gold: 150, diamond: 100, redstone: 255 }[ore.name] || ore.minimum) : ore.minimum;
+    const target = Math.min(candidates.length, Math.max(minimum, Math.round(candidates.length * ore.share * multiplier)));
     let placed = 0, attempts = 0;
     while (placed < target && attempts++ < candidates.length * 2) {
       const seed = candidates[Math.floor(rng() * candidates.length)];
@@ -220,6 +238,38 @@ registerWorldPass('thorns', (world) => {
     }
   }
 }, { order: 160 });
+
+// Reskin and diversify only ordinary terrain after ore placement. Existing ores,
+// lava, structures, and the starting area retain their established coordinates.
+registerWorldPass('biomes', (world) => {
+  if (world.regionKind === 'original') return;
+  const cx = world.w / 2, cy = world.h / 2;
+  for (let y = 0; y < world.h; y++) for (let x = 0; x < world.w; x++) {
+    if (Math.hypot(x - cx, y - cy) < 10) continue;
+    const tile = world.tile(x, y).name;
+    const latitude = y / world.h + (fbm(x / 30, y / 30, world.seed + 201, 3) - 0.5) * 0.18;
+    const biome = world.regionKind === 'snow' ? 'snow' : world.regionKind === 'desert' ? 'desert' :
+      world.regionKind === 'forest' || world.regionKind === 'mineral' || world.regionKind === 'highlands' ? 'temperate' :
+      latitude < 0.40 ? 'snow' : latitude > 0.62 ? 'desert' : 'temperate';
+    if (tile === 'grass') {
+      if (biome === 'snow') world.set(x, y, 'snow');
+      else if (biome === 'desert') world.set(x, y, 'sand');
+    } else if (tile === 'tree') {
+      if (biome === 'snow') world.set(x, y, 'snow-tree');
+      else if (biome === 'desert') world.set(x, y, hash2(x, y, world.seed + 202) < 0.2 ? 'desert-tree' : 'sand');
+    } else if (tile === 'stone') {
+      if (biome === 'snow') world.set(x, y, 'froststone-rock');
+      else if (biome === 'desert') world.set(x, y, 'sandstone-rock');
+      else if (fbm(x / 12, y / 12, world.seed + 203, 3) > 0.52) world.set(x, y, 'granite-rock');
+    }
+    // Sparse small rocky outcrops make each stone available even on seeds whose
+    // mountains happen to lie entirely in another climate.
+    if ((tile === 'grass' || (tile === 'sand' && biome === 'desert')) &&
+        hash2(Math.floor(x / 3), Math.floor(y / 3), world.seed + 204) > 0.975) {
+      world.set(x, y, biome === 'snow' ? 'froststone-rock' : biome === 'desert' ? 'sandstone-rock' : 'granite-rock');
+    }
+  }
+}, { order: 170 });
 
 // TODO(world team): more passes, e.g.
 // registerWorldPass('villages', (world, rng) => { ... }, { order: 200 });
