@@ -67,11 +67,26 @@ registerEntityType('power-source', { interactive: true, on: true, color: '#a99af
 registerEntityType('redstone-lamp', { interactive: true, on: false, powered: false, light: 0, lightColor: '#ffe08a' });
 registerKeyHint('RMB lamp', 'switch power');
 
+// Lava is a mineable rocky vein, not a flowing liquid. World owns the special
+// diamond-tier mining behavior; the long fallback hardness prevents ordinary mining.
+registerItem('lava', { color: '#ff681c' });
+registerItem('obsidian', { color: '#8c6ace' });
+registerTile('lava-ore', { color: '#51424b', oreColor: '#ff681c', solid: true, opaque: true,
+  harvest: { item: 'lava', becomes: 'gravel' }, hardness: 1000000, tool: 'pickaxe' });
+registerRecipe('obsidian', { inputs: { lava: 1, diamond: 1 }, output: { obsidian: 1 } });
+registerItem('obsidian-pickaxe', { color: '#a582e8', tool: 'pickaxe', power: 40, gear: 5 });
+registerItem('obsidian-axe', { color: '#a582e8', tool: 'axe', power: 40, gear: 5 });
+registerItem('obsidian-sword', { color: '#a582e8', damage: 10, gear: 5,
+  weapon: { kind: 'melee', reach: 0.9, cooldown: 0.35 } });
+registerRecipe('obsidian-pickaxe', { inputs: { wood: 2, obsidian: 3 }, output: { 'obsidian-pickaxe': 1 } });
+registerRecipe('obsidian-axe', { inputs: { wood: 2, obsidian: 3 }, output: { 'obsidian-axe': 1 } });
+registerRecipe('obsidian-sword', { inputs: { wood: 1, obsidian: 2 }, output: { 'obsidian-sword': 1 } });
 // Glass: blocks movement but not sight (no `opaque`), and lights shine through it.
 // hurts: { damage, every } hits anything with hp standing on the tile, once every `every` seconds.
 registerTile('glass', { color: '#9fd4e0', solid: true, structure: true, harvest: { item: 'glass', becomes: 'gravel' }, hardness: 0.8 });
 registerTile('thorns', { color: '#3b2a22', hurts: { damage: 1, every: 0.8 }, harvest: { item: 'thorns', becomes: 'gravel' }, hardness: 1.5, tool: 'axe' });
-registerTile('lava', { color: '#e2501c', hurts: { damage: 2, every: 0.5 } });
+registerTile('lava', { color: '#e2501c', hurts: { damage: 2, every: 0.5 },
+  harvest: { item: 'lava', becomes: 'gravel' }, hardness: 1000000, tool: 'pickaxe' });
 registerItem('sand', { color: '#c9b77e' });
 registerItem('glass', { color: '#9fd4e0', placesTile: 'glass' });
 registerItem('thorns', { color: '#6b4a32', placesTile: 'thorns' });
@@ -159,6 +174,8 @@ function generateVeins(world, rng, definitions) {
 }
 registerWorldPass('ores', (world, rng) => generateVeins(world, rng, ORES), { order: 100 });
 registerWorldPass('electric-ores', (world, rng) => generateVeins(world, rng, ELECTRIC_ORES), { order: 110 });
+registerWorldPass('lava-veins', (world, rng) => generateVeins(world, rng,
+  [{ name: 'lava', color: '#ff681c', share: 0.018, minimum: 8 }]), { order: 130 });
 
 // Lava pools in mountain cores, never near spawn. Runs after the ore passes and
 // only replaces plain stone, so ore positions stay where they were.

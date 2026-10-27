@@ -34,6 +34,22 @@ registerDrawer('item:monster-goo', (ctx, item, cx, cy, s) => {
 
 onEvent('net:pickedUp', (game, { item, count }) => game.notify(`+${count} ${item.replace(/-/g, ' ')}`, 1.5, game.theme.colors.candle));
 
+onEvent('net:lightBurn', (game, { x, y }) => {
+  (game._lightBurnEffects ||= []).push({ x, y, until: performance.now() + 700 });
+});
+registerHud('light-burn-effects', (ctx, game) => {
+  const now = performance.now();
+  game._lightBurnEffects = (game._lightBurnEffects || []).filter(effect => effect.until > now);
+  for (const effect of game._lightBurnEffects) {
+    if (!game.canSee(effect.x, effect.y)) continue;
+    const p = game.worldToScreen(effect.x, effect.y), rise = (700 - (effect.until - now)) / 35;
+    ctx.save(); ctx.globalAlpha = Math.min(1, (effect.until - now) / 250);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = game.font(15, 'display');
+    ctx.fillStyle = '#ffe08a'; ctx.fillText('AAH!', p.x, p.y - 24 - rise);
+    ctx.restore();
+  }
+});
+
 let debug = false;
 let last = null;
 

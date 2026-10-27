@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { registries } from '../../shared/registry.js';
 
-process.env.PORT = '8111';
+process.env.PORT ||= '8111';
 process.env.SEED = '4242';
 process.env.START_TIME = '10';
 const { game } = await import('../../server/index.js');
