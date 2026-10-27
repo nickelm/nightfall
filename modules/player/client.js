@@ -6,13 +6,16 @@
 //   Shift (hold)               always guards
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
+import { updateMovementControl } from './movement-control.js';
 
 const REACH = 1.8;       // tiles: mining and swinging
 const PLACE_REACH = 2.5; // tiles: right-click use and place
 const AIM_DEAD_ZONE = 0.4; // tiles around the player where the cursor does not turn us
+const RUN_MULT = 1.6;    // speed factor while running
 
 let sendTimer = 0;
 let guarding = false;
+let running = false;
 let mining = null;  // the tile we asked the server to mine, or null
 let useTimer = 0;   // right-click repeat while held
 
@@ -36,6 +39,7 @@ function interactTarget(game) {
 }
 
 registerClientSystem('movement', (game, dt) => {
+  updateMovementControl(game);
   const me = game.me;
   if (!me) return;
   const k = game.input;
@@ -63,17 +67,29 @@ registerClientSystem('movement', (game, dt) => {
     }
   }
 
+  // --- read movement keys first: Shift runs while moving and guards when still ---
+  const fwd = (k.down('KeyW') || k.down('ArrowUp') ? 1 : 0) - (k.down('KeyS') || k.down('ArrowDown') ? 1 : 0);
+  const side = (k.down('KeyD') || k.down('ArrowRight') ? 1 : 0) - (k.down('KeyA') || k.down('ArrowLeft') ? 1 : 0);
+  const moving = !!(fwd || side);
+  const shift = free && (k.down('ShiftLeft') || k.down('ShiftRight'));
+
   // --- guard (block with a shield, parry without one) ---
-  const guard = rightGuard || (free && (k.down('ShiftLeft') || k.down('ShiftRight')));
+  const guard = rightGuard || (shift && !moving);
   if (guard !== guarding) {
     guarding = guard;
     me.guarding = guard;
     game.sendAction('guard', { on: guard });
   }
 
+  // --- run while stamina lasts (the server drains it and sets `winded` when it runs out) ---
+  const run = shift && moving && !guard && !me.winded && (me.stamina ?? 0) > 0;
+  if (run !== running) {
+    running = run;
+    me.running = run;
+    game.sendAction('run', { on: run });
+  }
+
   // --- move: relative to facing (W toward the cursor) or to the screen, see Esc settings ---
-  const fwd = (k.down('KeyW') || k.down('ArrowUp') ? 1 : 0) - (k.down('KeyS') || k.down('ArrowDown') ? 1 : 0);
-  const side = (k.down('KeyD') || k.down('ArrowRight') ? 1 : 0) - (k.down('KeyA') || k.down('ArrowLeft') ? 1 : 0);
   let dx = side, dy = -fwd;
   if (game.settings.movement !== 'screen' && k.mouse.active) {
     const d = me.dir; // right of facing is (-d.y, d.x) with y pointing down the screen
@@ -83,7 +99,7 @@ registerClientSystem('movement', (game, dt) => {
   if (dx || dy) {
     const len = Math.hypot(dx, dy);
     dx /= len; dy /= len;
-    const step = (me.speed || 5) * (guarding ? 0.5 : 1) * dt;
+    const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * dt;
     // move each axis separately so we slide along walls
     if (!game.world.blocked(me.x + dx * step, me.y)) me.x += dx * step;
     if (!game.world.blocked(me.x, me.y + dy * step)) me.y += dy * step;

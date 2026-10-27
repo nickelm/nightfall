@@ -7,6 +7,10 @@ import { ATTACKS, stepProjectiles } from './weapons.js';
 const PARRY_WINDOW = 0.25;   // seconds after pressing guard (no shield)
 const PARRY_COOLDOWN = 0.6;  // so mashing RMB does not parry everything
 const STUN = 1.2;            // seconds a parried attacker stays stunned
+const STAMINA_REGEN = 1;     // stamina per second while not running
+const REGEN_DELAY = 0.8;     // seconds after running stops before stamina refills
+const WINDED_UNTIL = 0.3;    // after running dry, no running until this fraction of maxStamina
+const HEALTH_REGEN_INTERVAL = 10; // seconds between recovered health points
 
 // Attack with the held item: its `weapon.kind` picks the attack in weapons.js
 // (melee arc, ranged shot); items without a `weapon` field swing in melee.
@@ -26,6 +30,26 @@ onAction('guard', (game, player, { on }) => {
   if (on && game.time >= (player._parryReadyAt || 0)) {
     player._parryUntil = game.time + PARRY_WINDOW;
     player._parryReadyAt = game.time + PARRY_COOLDOWN;
+  }
+});
+
+// Running: the client moves faster while `running`; stamina here decides whether it may.
+onAction('run', (game, player, { on }) => {
+  player.running = !!on && !player.winded && player.stamina > 0;
+});
+
+registerSystem('stamina', (game, dt) => {
+  for (const p of game.players()) {
+    const max = p.maxStamina ?? 4;
+    p.stamina ??= max;
+    if (p.running) {
+      p.stamina -= dt;
+      p._staminaRegenAt = game.time + REGEN_DELAY;
+      if (p.stamina <= 0) { p.stamina = 0; p.running = false; p.winded = true; }
+    } else if (game.time >= (p._staminaRegenAt || 0) && p.stamina < max) {
+      p.stamina = Math.min(max, p.stamina + STAMINA_REGEN * dt);
+    }
+    if (p.winded && p.stamina >= max * WINDED_UNTIL) p.winded = false;
   }
 });
 
@@ -64,8 +88,26 @@ registerSystem('respawn', (game) => {
   for (const p of game.players()) {
     if (p.hp > 0) continue;
     p.hp = p.maxHp;
+    p.stamina = p.maxStamina;
+    p.running = p.winded = false;
     const spot = game.world.findWalkable();
     game.teleport(p, spot.x, spot.y);
     game.sendTo(p.id, 'died', {});
+  }
+});
+
+// Recover one health point at a time while alive, without exceeding maxHp.
+registerSystem('health-regen', (game, dt) => {
+  for (const p of game.players()) {
+    if (!(p.hp > 0) || !(p.hp < p.maxHp)) {
+      p._healthRegen = 0;
+      continue;
+    }
+    p._healthRegen = (p._healthRegen || 0) + dt;
+    if (p._healthRegen >= HEALTH_REGEN_INTERVAL) {
+      const points = Math.floor(p._healthRegen / HEALTH_REGEN_INTERVAL);
+      p.hp = Math.min(p.maxHp, p.hp + points);
+      p._healthRegen = p.hp >= p.maxHp ? 0 : p._healthRegen % HEALTH_REGEN_INTERVAL;
+    }
   }
 });

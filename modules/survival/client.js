@@ -5,6 +5,7 @@
 import { registries, registerClientSystem, registerHud } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 import { safely } from '../../shared/safe.js';
+import './tool-art.js';
 
 const SLOTS = 9, SLOT = 46, GAP = 4;
 const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
@@ -25,12 +26,15 @@ function inventoryLayout(game, w, h) {
   const recipes = [...registries.recipes.values()];
   const pw = Math.min(680, w - 32), cols = Math.max(3, Math.floor((pw * 0.5 - 24) / (SLOT + GAP)));
   const rows = Math.max(2, Math.ceil(items.length / cols));
-  const ph = Math.max(80 + rows * (SLOT + GAP), 80 + recipes.length * 40) + 40;
+  const ph = Math.min(Math.max(80 + rows * (SLOT + GAP), 80 + recipes.length * 40) + 40, Math.max(220, h - 160));
   const x = (w - pw) / 2, y = Math.max(12, hotbarSlot(0, w, h).y - ph - 34); // clear of the hearts
+  const visible = Math.max(1, Math.floor((ph - 110) / 40));
+  const maxScroll = Math.max(0, recipes.length - visible);
+  game._recipeScroll = Math.max(0, Math.min(maxScroll, game._recipeScroll || 0));
   return {
-    x, y, pw, ph,
+    x, y, pw, ph, maxScroll, visible,
     items: items.map((name, i) => ({ name, x: x + 16 + (i % cols) * (SLOT + GAP), y: y + 64 + Math.floor(i / cols) * (SLOT + GAP), w: SLOT, h: SLOT })),
-    recipes: recipes.map((r, i) => ({ r, x: x + pw / 2 + 8, y: y + 64 + i * 40, w: pw / 2 - 24, h: 36 })),
+    recipes: recipes.slice(game._recipeScroll, game._recipeScroll + visible).map((r, i) => ({ r, x: x + pw / 2 + 8, y: y + 64 + i * 40, w: pw / 2 - 24, h: 36 })),
   };
 }
 
@@ -58,7 +62,11 @@ registerClientSystem('survival-input', (game) => {
   if (game.ui !== 'inventory') picked = null;
 
   if (game.ui === 'inventory') {
-    const L = inventoryLayout(game, game.screen.w, game.screen.h);
+    let L = inventoryLayout(game, game.screen.w, game.screen.h);
+    if (k.wheel() && inside(m, { x: L.x + L.pw / 2, y: L.y, w: L.pw / 2, h: L.ph })) {
+      game._recipeScroll = Math.max(0, Math.min(L.maxScroll, game._recipeScroll + Math.sign(k.wheel())));
+      L = inventoryLayout(game, game.screen.w, game.screen.h);
+    }
     const hovered = L.items.find((r) => inside(m, r))?.name;
     DIGITS.forEach((code, i) => { if (k.pressed(code) && hovered) game.sendAction('hotbar', { slot: i, item: hovered }); });
     if (k.clicked(0)) {
@@ -148,7 +156,7 @@ registerHud('target', (ctx, game) => {
     }
   }
   const t = game.targetTile();
-  const useful = game.world.tile(t.x, t.y)?.harvest ||
+  const useful = game.world.tile(t.x, t.y)?.harvest || game.world.tile(t.x, t.y)?.interact ||
     [...game.entities.values()].some((e) => e.interactive && Math.floor(e.x) === t.x && Math.floor(e.y) === t.y);
   const p = game.worldToScreen(t.x, t.y);
   ctx.strokeStyle = useful ? 'rgba(255,224,138,0.85)' : 'rgba(255,224,138,0.2)';
@@ -232,9 +240,18 @@ registerHud('inventory-screen', (ctx, game, w, h) => {
     ctx.globalAlpha = 1;
   }
 
+  if (L.maxScroll) {
+    const track = L.visible * 40;
+    ctx.fillStyle = C.violet;
+    ctx.fillRect(L.x + L.pw - 9, L.y + 64, 3, track);
+    ctx.fillStyle = C.pumpkin;
+    const thumb = track * L.visible / (L.visible + L.maxScroll);
+    ctx.fillRect(L.x + L.pw - 9, L.y + 64 + (track - thumb) * game._recipeScroll / L.maxScroll, 3, thumb);
+  }
+
   ctx.textAlign = 'center';
   ctx.font = game.font(13);
   ctx.fillStyle = C.ash;
-  ctx.fillText(picked ? `now click a hotbar slot for ${picked}` : 'hover an item and press 1-9 (or click it, then a slot) · click a recipe to craft · E to close',
+  ctx.fillText(picked ? `now click a hotbar slot for ${picked}` : 'hover item + 1-9: equip · click recipe: craft · scroll crafting: more · E: close',
     L.x + L.pw / 2, L.y + L.ph - 18);
 });

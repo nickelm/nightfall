@@ -3,7 +3,8 @@ import { registerEntityType, registerItem, registerKeyHint } from '../../shared/
 
 // `light` is the torch every player carries: enough to see by, too weak to keep monsters away.
 // hotbar: 9 item names (or null) pointing into the inventory; the held item is hotbar[selected].
-registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
+// stamina: seconds of running (Shift while moving); the server drains and refills it.
+registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina: 4, maxStamina: 4, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
 
 // Weapons. `damage` is how hard a held item hits in melee (default 1). The optional
 // `weapon` field picks an attack kind from modules/player/weapons.js and tunes it;
@@ -16,10 +17,10 @@ registerItem('arrow', { color: '#d8c8a0', ammo: { damage: 1 } });
 // A flying arrow. ttl is seconds left in the air; a faint light shows it at night.
 registerEntityType('arrow', { vx: 0, vy: 0, damage: 1, owner: null, ttl: 1, light: 0.6, lightColor: '#ffd9a0' });
 
-registerKeyHint('WASD', 'move (W toward cursor)');
+registerKeyHint('WASD', 'move');
 registerKeyHint('LMB/Space', 'mine / attack');
 registerKeyHint('RMB', 'place / guard');
-registerKeyHint('Shift', 'guard');
+registerKeyHint('Shift', 'run (guard when still)');
 registerKeyHint('Esc', 'settings');
 
 // TODO(player team): spells, e.g.

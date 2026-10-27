@@ -11,7 +11,17 @@ const dist = (player, x, y) => Math.hypot(x + 0.5 - player.x, y + 0.5 - player.y
 
 // Right click on an interactive thing: feed a campfire standing there.
 onAction('interact', (game, player, { x, y }) => {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return;
   if (dist(player, x, y) > 2) return; // too far
+  const tile = game.world.tile(x, y);
+  if (tile?.name === 'door-closed' || tile?.name === 'door-open') {
+    const closing = tile.name === 'door-open';
+    // Never close a solid door on a player or creature standing in the opening.
+    if (closing && [...game.entities.values()].some(e =>
+      Math.abs(e.x - x - 0.5) < 0.85 && Math.abs(e.y - y - 0.5) < 0.85)) return;
+    game.setTile(x, y, closing ? 'door-closed' : 'door-open');
+    return;
+  }
   const fire = game.near(x + 0.5, y + 0.5, 0.9, (e) => e.type === 'campfire')[0];
   if (!fire || !game.has(player, 'wood') || fire.fuel >= fire.maxFuel) return;
   game.give(player, 'wood', -1);
