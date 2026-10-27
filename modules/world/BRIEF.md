@@ -26,6 +26,14 @@ Hold a pickaxe and right-click a lamp or older power crystal to pick it up; mine
 wire to retrieve it and restore its ground. Existing crystal ores and sources are
 preserved for compatibility with saved worlds; crystals are not needed for lamps.
 
+## Lava and obsidian
+
+Solid lava veins generate in rocky terrain, without replacing existing ores. Lava
+does not flow or damage players. Mine a vein with a diamond or obsidian pickaxe;
+one lava and one diamond craft one obsidian. An obsidian pickaxe or axe requires
+three obsidian and two wood and has mining power 40. An obsidian sword requires
+two obsidian and one wood and deals 10 damage. The pickaxe can also mine lava.
+
 ## Goals, in priority order
 
 1. **Building tiles and villages (by 0:45).** Register `wall` (solid, opaque, `structure: true`, harvest gives `stone`, becomes `floor`), `door-closed` (solid, opaque, `structure: true`), `door-open` (`structure: true`), and `floor` (walkable). Survival depends on these names, so register them first and commit early. Then add a `villages` pass (order 200) that places two to four villages on open grass away from the spawn point: small houses of about 5 by 4 tiles with walls, a floor, and a door gap, joined by gravel paths. Push each village onto `world.features` as `{ type: 'village', x, y, w, h }`.
