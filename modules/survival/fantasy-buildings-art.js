@@ -49,18 +49,63 @@ registerDrawer('tile:white-city-floor', (ctx, tile, x, y, size) => {
   ctx.beginPath(); ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size); ctx.stroke();
 });
 function city(ctx, x, y, w, h, tile) {
-  ctx.fillStyle = '#8e9eab'; ctx.fillRect(x, y, w, h);
-  for (let ring = 0; ring < 7; ring++) {
-    const scale = 1 - ring * .115;
-    ctx.beginPath(); ctx.ellipse(x + w / 2, y + h * .54, w * .48 * scale, h * .45 * scale, 0, 0, Math.PI * 2);
-    ctx.fillStyle = ring % 2 ? '#b6c1c7' : '#ced5d5'; ctx.fill();
-    ctx.strokeStyle = '#f2f1e5'; ctx.lineWidth = tile * .14; ctx.stroke();
+  ctx.save(); ctx.translate(x, y);
+  const ellipse = (cx, cy, rx, ry, color) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  const tower = (cx, cy, radius, height) => {
+    ctx.fillStyle = '#a9b5b8'; ctx.fillRect(cx - radius, cy - height, radius * 2, height);
+    ellipse(cx, cy, radius, radius * .4, '#adb8bb');
+    ellipse(cx, cy - height, radius, radius * .4, '#f5f3e8');
+    ctx.fillStyle = '#e9e9de'; ctx.fillRect(cx - radius, cy - height, radius * .7, height);
+    ctx.fillStyle = '#485960'; ctx.fillRect(cx - radius * .15, cy - height * .7, radius * .3, height * .32);
+    ctx.fillStyle = '#f8f5e7';
+    for (const dx of [-.8, 0, .8]) ctx.fillRect(cx + dx * radius - radius * .18, cy - height - radius * .35, radius * .36, radius * .55);
+  };
+  // A mountain-backed, rising city silhouette rather than flat concentric rings.
+  ctx.fillStyle = '#55616a'; ctx.beginPath(); ctx.moveTo(w*.23,h*.53);ctx.lineTo(w*.37,h*.06);ctx.lineTo(w*.47,h*.16);ctx.lineTo(w*.58,0);ctx.lineTo(w*.78,h*.51);ctx.closePath();ctx.fill();
+  ctx.fillStyle = '#6e7b82'; ctx.beginPath();ctx.moveTo(w*.58,0);ctx.lineTo(w*.51,h*.46);ctx.lineTo(w*.78,h*.51);ctx.closePath();ctx.fill();
+  for (let level = 0; level < 7; level++) {
+    const rx = w * (.475 - level * .053), ry = h * (.095 - level * .008);
+    const cy = h * (.81 - level * .096), face = h * .068;
+    // Pale rampart faces, shadowed below each terrace, make the height readable.
+    ellipse(w/2, cy + face, rx, ry, '#89999f');
+    ctx.fillStyle = '#bdc7c8'; ctx.fillRect(w/2-rx, cy, rx*2, face);
+    ellipse(w/2, cy + face*.78, rx, ry, '#d1d7d5');
+    ellipse(w/2, cy, rx, ry, '#9ba9ad');
+    // Small pitched roofs and houses occupy the terraces.
+    const houses = Math.max(4, 16-level*2);
+    for (let i=0;i<houses;i++) {
+      const u=(i+.5)/houses, hx=w/2-rx*.86+rx*1.72*u;
+      const hy=cy+ry*.72 + ((i%3)-1)*ry*.06, bw=Math.max(w*.012,rx*.07), bh=h*.024;
+      ctx.fillStyle='#e9e9df';ctx.fillRect(hx-bw/2,hy,bw,bh);
+      ctx.fillStyle='#677d87';ctx.beginPath();ctx.moveTo(hx-bw*.65,hy);ctx.lineTo(hx,hy-bh*.55);ctx.lineTo(hx+bw*.65,hy);ctx.closePath();ctx.fill();
+    }
+    ctx.strokeStyle='#f8f6e9';ctx.lineWidth=Math.max(1,tile*.055);
+    ctx.beginPath();ctx.ellipse(w/2,cy,rx,ry,0,0,Math.PI);ctx.stroke();
+    const merlons = Math.max(10, 38-level*4);
+    for (let i=0;i<=merlons;i++) {
+      const angle=i/merlons*Math.PI, px=w/2+Math.cos(angle)*rx, py=cy+Math.sin(angle)*ry;
+      ctx.fillStyle='#f0f0e4';ctx.fillRect(px-w*.004,py-h*.012,w*.008,h*.022);
+      if(i%3===1){ctx.fillStyle='#60737b';ctx.fillRect(px-w*.002,py+face*.34,w*.004,h*.019);}
+    }
+    tower(w/2-rx*.91,cy+ry*.35,w*.014,h*.06);
+    tower(w/2+rx*.91,cy+ry*.35,w*.014,h*.06);
   }
-  ctx.fillStyle = '#eaece3'; ctx.fillRect(x + w * .475, y + h * .4, w * .05, h * .59);
-  ctx.fillStyle = '#faf9e8'; ctx.fillRect(x + w * .465, y + h * .08, w * .07, h * .38);
-  ctx.fillStyle = '#8e9daa'; ctx.fillRect(x + w * .49, y + h * .13, w * .02, h * .22);
-  ctx.fillStyle = '#d9bf72'; ctx.fillRect(x + w * .455, y + h * .07, w * .09, tile * .1);
-  ctx.fillStyle = '#eefaff'; ctx.beginPath(); ctx.moveTo(x+w*.5,y+h*.01);ctx.lineTo(x+w*.52,y+h*.045);ctx.lineTo(x+w*.5,y+h*.08);ctx.lineTo(x+w*.48,y+h*.045);ctx.closePath();ctx.fill();
+  // The huge dark stone keel splits the tiers and points out toward the plain.
+  ctx.fillStyle='#8c999e';ctx.beginPath();ctx.moveTo(w*.46,h*.17);ctx.lineTo(w*.55,h*.23);ctx.lineTo(w*.57,h*.70);ctx.lineTo(w*.51,h*.86);ctx.lineTo(w*.455,h*.59);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#b5bfbc';ctx.beginPath();ctx.moveTo(w*.46,h*.17);ctx.lineTo(w*.51,h*.42);ctx.lineTo(w*.51,h*.86);ctx.lineTo(w*.455,h*.59);ctx.closePath();ctx.fill();
+  // Upper court and the unmistakable tall white tower of the citadel.
+  ellipse(w*.5,h*.24,w*.12,h*.04,'#e8e9dd');
+  tower(w*.5,h*.24,w*.022,h*.20);
+  ctx.fillStyle='#f9f6e7';ctx.beginPath();ctx.moveTo(w*.475,h*.04);ctx.lineTo(w*.5,h*.005);ctx.lineTo(w*.525,h*.04);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#f7f4df';ctx.lineWidth=Math.max(1,tile*.035);ctx.beginPath();ctx.moveTo(w*.57,h*.25);ctx.lineTo(w*.57,h*.20);ctx.moveTo(w*.57,h*.22);ctx.lineTo(w*.55,h*.20);ctx.moveTo(w*.57,h*.22);ctx.lineTo(w*.59,h*.19);ctx.moveTo(w*.57,h*.215);ctx.lineTo(w*.565,h*.19);ctx.stroke();
+  // The main gate is aligned with the actual entrance at the centre of the building.
+  const gateY=h*.94;
+  ctx.fillStyle='#e7e9df';ctx.fillRect(w*.455,gateY-h*.07,w*.09,h*.095);
+  ctx.fillStyle='#34434b';ctx.beginPath();ctx.moveTo(w*.48,gateY+h*.025);ctx.lineTo(w*.48,gateY-h*.015);ctx.quadraticCurveTo(w*.5,gateY-h*.06,w*.52,gateY-h*.015);ctx.lineTo(w*.52,gateY+h*.025);ctx.closePath();ctx.fill();
+  tower(w*.445,gateY,w*.021,h*.095);tower(w*.555,gateY,w*.021,h*.095);
+  ctx.restore();
 }
 registerDrawer('roof:minas-tirith', city);
 registerDrawer('item:rohan-hall', (ctx, item, x, y, size) => {
