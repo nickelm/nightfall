@@ -13,6 +13,10 @@ You decide what lives on the island and how frightening each night becomes. The 
 - `director.js`: the game director. At night it keeps a threat budget that scales with players, gear, settlement, and night number, cycles through build-up, peak, and relax, and sends hordes (DESIGN.md has the formula). All tuning numbers live in `TUNING`. Its state lives on `game.director`, so it survives hot swaps.
 - `client.js`: horde warnings and the F3 debug panel.
 
+Powered redstone lamps prevent director spawns within their full light radius.
+Turning a lamp off removes that protection. Lamps do not repel existing monsters,
+which can still walk into the lit area.
+
 ## Raising animals
 
 Pigs, sheep, chickens, and cows appear in the field. Right-click one to catch it as a
