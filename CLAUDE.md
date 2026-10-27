@@ -139,7 +139,7 @@ game.broadcast('exploded', { x, y });                       // server.js
 onEvent('net:exploded', (game, { x, y }) => { /* ... */ }); // client.js
 ```
 
-An entity with a numeric `light` field lights up the night automatically. On the client, `game.canSee(x, y)` tells you whether the player can see a position right now (fog of war), and `game.targetTile()` gives the tile the player is aiming at with the mouse. Item icons for the hotbar come from `registerDrawer('item:<name>', (ctx, item, cx, cy, size, game) => ...)`.
+An entity with a numeric `light` field lights up the night automatically. On the client, `game.canSee(x, y)` tells you whether any player can see a position right now (fog of war; sight is shared), and `game.targetTile()` gives the tile the player is aiming at with the mouse. Item icons for the hotbar come from `registerDrawer('item:<name>', (ctx, item, cx, cy, size, game) => ...)`.
 
 ## Testing
 
