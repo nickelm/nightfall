@@ -65,6 +65,15 @@ registerKeyHint('RMB animal', 'catch');
 registerKeyHint('RMB pen', 'house / feed / collect');
 
 registerKeyHint('F3', 'director debug');
+registerKeyHint('F4', 'RTS mode');
+
+// RTS mode (rts-server.js, rts-art.js): F4 hides your hero and gives you `peasants` workers.
+// A click sends them to mine the harvestable tiles within `radius` of that spot; each load
+// goes to the nearest Minas Tirith (`hall`, `hallW` x `hallH` tiles) and is split equally
+// among everyone online. Mining takes the tile's hardness times `mineSlow`, at most `maxMine` s.
+export const RTS = { peasants: 3, speed: 3, radius: 7, mineSlow: 1.5, maxMine: 8, hall: 'minas-tirith', hallW: 13, hallH: 10 };
+registerEntityType('peasant', { owner: null, speed: RTS.speed, task: 'idle', carry: null, carryCount: 0, work: 0, area: null,
+  dir: { x: 0, y: 1 }, light: 1.5, lightColor: '#ffd27a' });
 
 // Dynamite: three lava make one stick; right click places it, and it explodes after
 // `fuse` seconds, dealing `damage` to everything within `radius` tiles (dynamite-server.js).

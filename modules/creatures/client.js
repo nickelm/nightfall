@@ -8,6 +8,7 @@ import './giant-potion-art.js';
 import './monsters-art.js';
 import './wildlife-art.js';
 import './first-person.js';
+import './rts-art.js';
 
 // Blood slime: the slime drawing (from Art) scaled up by `size`, in the slime's own red.
 // Art can register its own 'blood-slime' drawer to replace this.

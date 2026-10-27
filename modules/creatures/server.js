@@ -9,6 +9,7 @@ import './giant-potion-server.js';
 import './double-sword-server.js';
 import { taunter } from './monsters-server.js';
 import './wildlife-server.js';
+import './rts-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
