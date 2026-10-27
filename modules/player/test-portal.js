@@ -26,7 +26,9 @@ try {
   const first = [...game.entities.values()].find(e => e.type === 'portal');
   assert.ok(!p.inventory.portal);
   const second = game.spawn('portal', { x: 246.5, y: 240.5 });
-  game.spawn('portal', { x: 252.5, y: 240.5 });
+  const third = game.spawn('portal', { x: 252.5, y: 240.5 });
+  game.setTile(400, 240, 'grass');
+  const distant = game.spawn('portal', { x: 400.5, y: 240.5 });
   game.spawn('portal', { x: 240.5, y: 236.5 });
   a.action('interact', { x: 240, y: 240 }); await until(() => p.portalId === first.id);
   await until(() => b.snap.entities.find(e => e.id === p.id)?.portalId === first.id);
@@ -38,6 +40,11 @@ try {
   a.ws.close(); await until(() => !game.entities.has(a.id));
   const c = await connect('Traveler'); p = game.entities.get(c.id);
   assert.equal(p.portalId, second.id, 'portal mode survives reconnect');
+  await sleep(250); c.action('portalMove', { direction: 'right' }); await until(() => p.portalId === third.id);
+  await sleep(250); c.action('portalMove', { direction: 'right' }); await until(() => p.portalId === distant.id);
+  assert.equal(p.x, 400.5, 'portals more than 80 tiles away remain reachable');
+  await sleep(250); c.action('portalMove', { direction: 'left' }); await until(() => p.portalId === third.id);
+  await sleep(250); c.action('portalMove', { direction: 'left' }); await until(() => p.portalId === second.id);
   for (let y = 239; y <= 241; y++) for (let x = 245; x <= 247; x++) if (x !== 246 || y !== 240) game.setTile(x, y, 'wood-wall');
   c.action('portalExit'); await sleep(150);
   assert.equal(p.portalId, second.id, 'cannot exit into blocked terrain');

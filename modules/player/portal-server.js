@@ -1,6 +1,5 @@
 import { onAction, registerSystem } from '../../shared/registry.js';
 
-const RANGE = 80;
 const directions = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const tell = (game, p, text) => game.sendTo(p.id, 'portalMessage', { text });
 const safe = (game, x, y) => !game.world.blocked(x, y) && !game.world.tile(x, y)?.hurts;
@@ -12,7 +11,7 @@ onAction('interact', (game, p, { x, y }) => {
   if (!portal || !safe(game, portal.x, portal.y)) return;
   p.portalId = portal.id; p.running = false; p.guarding = false;
   game.teleport(p, portal.x, portal.y);
-  tell(game, p, 'Portal: WASD travels to a nearby portal; Space exits.');
+  tell(game, p, 'Portal: WASD travels to the nearest portal in that direction; Space exits.');
 });
 
 onAction('portalMove', (game, p, { direction }) => {
@@ -21,9 +20,9 @@ onAction('portalMove', (game, p, { direction }) => {
   const candidates = [...game.entities.values()].filter(e => {
     if (e.type !== 'portal' || e.id === from.id || !safe(game, e.x, e.y)) return false;
     const dx = e.x - from.x, dy = e.y - from.y, d = Math.hypot(dx, dy);
-    return d <= RANGE && d > 0 && (dx * dir[0] + dy * dir[1]) >= d * Math.SQRT1_2;
+    return d > 0 && (dx * dir[0] + dy * dir[1]) >= d * Math.SQRT1_2;
   }).sort((a, b) => Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y) || a.id - b.id);
-  if (!candidates.length) { tell(game, p, 'No reachable portal in that direction within 80 tiles.'); return; }
+  if (!candidates.length) { tell(game, p, 'No reachable portal in that direction.'); return; }
   const target = candidates[0]; p.portalId = target.id; p._portalNext = game.time + .2;
   game.teleport(p, target.x, target.y);
 });

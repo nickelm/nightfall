@@ -14,7 +14,7 @@ to disembark and recover the boat automatically. Reconnecting at sea preserves i
 
 Craft a portal from five diamonds and right-click to place it on clear ground.
 Right-click a placed portal to enter. While inside, press W/A/S/D to travel to
-the nearest portal in that screen direction within 80 tiles; Space exits onto a
+the nearest portal in that screen direction at any distance; Space exits onto a
 safe adjacent tile. Portal mode and location survive reconnecting.
 
 Craft a road tile from two stone and place it on clear ground. Walking or
