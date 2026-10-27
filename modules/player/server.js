@@ -5,6 +5,7 @@ import { registries, onAction, onEvent, registerSystem } from '../../shared/regi
 import { ATTACKS, stepProjectiles } from './weapons.js';
 import './boat-server.js';
 import './portal-server.js';
+import './progression-server.js';
 
 const PARRY_WINDOW = 0.25;   // seconds after pressing guard (no shield)
 const PARRY_COOLDOWN = 0.6;  // so mashing RMB does not parry everything

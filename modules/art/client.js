@@ -618,6 +618,11 @@ registerDrawer('player', (ctx, e, x, y, T, game) => {
   ctx.strokeText(e.name, x, y - T * 0.5);
   ctx.fillStyle = game.theme.colors.bone;
   ctx.fillText(e.name, x, y - T * 0.5);
+  if (e.level) {
+    const rank = `Lv.${e.level} ${e.title || 'Wanderer'}`;
+    ctx.font = game.font(11); ctx.fillStyle = game.theme.colors.candle;
+    ctx.strokeText(rank, x, y - T * .5 - 17); ctx.fillText(rank, x, y - T * .5 - 17);
+  }
 });
 
 // A gooey slime with a bone it swallowed. It flushes red and bares its fangs on the wind-up.

@@ -97,12 +97,14 @@ registerSystem('light-burn', game => {
   const lights = entities.filter(e => e.light > 0);
   for (const monster of entities) {
     if (!monster.hostile || !(monster.hp > 0)) continue;
-    const lit = lights.some(light => light !== monster && lightReaches(game.world, light, monster));
+    const lit = lights.find(light => light !== monster && lightReaches(game.world, light, monster));
     if (!lit) { delete monster._lightBurnAt; continue; }
     if (monster._lightBurnAt == null) { monster._lightBurnAt = game.time + 1; continue; }
     if (game.time < monster._lightBurnAt) continue;
     monster._lightBurnAt = game.time + 1;
     const { x, y } = monster;
+    const owner = lit.type === 'player' ? lit : game.entities.get(lit.owner) || null;
+    monster._lightHunter = owner?.id; monster._lightHunterAt = game.time;
     if (game.damage(monster, 1, null)) game.broadcast('lightBurn', { x, y });
   }
 });

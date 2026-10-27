@@ -8,6 +8,15 @@ You decide how it feels to be a person on this island: to move, to swing, to blo
 
 ## What already exists
 
+Combat XP starts at zero for legacy players because earlier versions recorded no
+kill history. Each hostile monster or predator gives 10 XP per threat point
+(minimum 10). Track total kills and per-species counts on the player. Level 2
+needs 20 total XP; subsequent levels cost 10 more than the previous level. Each
+level adds one maximum HP and heals that one gained point. Titles advance through
+Wanderer, Squire (3), Knight (5), Dawn Warden (10), Paladin (15), Dragon Lord (20).
+Direct kills, recent player damage followed by hazards, and owned light kills
+receive credit. XP, health growth, titles and kill history survive reconnect/save.
+
 Craft a boat from five wood. Hold it and right-click water within reach to board;
 WASD sails across water and land while walls still block movement. Reach open land
 to disembark and recover the boat automatically. Reconnecting at sea preserves it.

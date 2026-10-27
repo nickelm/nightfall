@@ -172,6 +172,9 @@ export function boatBlocked(world, x, y, r = 0.3) {
 }
 
 onEvent('net:boatMessage', (game, { text }) => game.notify(text, 4, game.theme.colors.candle));
+onEvent('net:xpGained', (game, { level, leveled, title }) => {
+  if (leveled) game.notify(`LEVEL ${level} - ${title}! Maximum health increased.`, 4, game.theme.colors.candle);
+});
 
 registerDrawer('item:boat', (ctx, item, x, y, size) => {
   ctx.save(); ctx.translate(x, y); ctx.rotate(-0.45);

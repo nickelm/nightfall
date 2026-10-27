@@ -9,6 +9,7 @@ import { canCraft, orderRecipes } from './crafting-order.js';
 import './tool-art.js';
 import './cabin-art.js';
 import './hanok-art.js';
+import { xpForLevel } from '../player/progression.js';
 
 const SLOTS = 9, SLOT = 46, GAP = 4;
 const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
@@ -189,7 +190,15 @@ registerHud('hotbar', (ctx, game, w, h) => {
 
   // health: one heart per point
   const first = hotbarSlot(0, w, h);
-  for (let i = 0; i < (me.maxHp || 0); i++) heart(ctx, first.x + 8 + i * 18, first.y - 22, 15, i < me.hp ? C.blood : 'rgba(60,30,60,0.8)');
+  for (let i = 0; i < Math.min(20, me.maxHp || 0); i++) heart(ctx, first.x + 8 + i * 18, first.y - 22, 15, i < me.hp ? C.blood : 'rgba(60,30,60,0.8)');
+  if (me.level) {
+    const current = xpForLevel(me.level), next = xpForLevel(me.level + 1);
+    const width = SLOTS * (SLOT + GAP) - GAP, y = first.y - 12;
+    ctx.fillStyle = '#30243e'; ctx.fillRect(first.x, y, width, 4);
+    ctx.fillStyle = C.candle; ctx.fillRect(first.x, y, width * Math.max(0, Math.min(1, (me.xp - current) / (next - current))), 4);
+    ctx.font = game.font(12); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillStyle = C.candle;
+    ctx.fillText(`Lv.${me.level} ${me.title} | XP ${me.xp - current}/${next - current} | HP ${Math.ceil(me.hp)}/${me.maxHp} | Kills ${me.kills}`, first.x, first.y - 35);
+  }
 
   // the held item's name, briefly after switching
   const age = performance.now() - shownAt, name = bar[game.selectedSlot];
