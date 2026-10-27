@@ -8,7 +8,7 @@ You decide what players find when they explore. Your world passes run on the ser
 
 ## What already exists
 
-- `shared.js` registers the terrain tiles (`water`, `sand`, `grass`, `tree`, `stone`, `gravel`), a `pumpkin` tile, and the blocks players place with right click (`wood-wall`, `stone-block`). Two world passes: `terrain` (order 0) builds an island from two noise fields (elevation decides water, sand, grass, and stone; moisture decides forests), and `pumpkins` (order 150) scatters pumpkin patches on open grass.
+- `shared.js` registers the terrain tiles (`water`, `sand`, `grass`, `tree`, `stone`, `gravel`), a `pumpkin` tile, ores, doors, and the blocks players place with right click (`wood-wall`, `stone-block`). The `terrain` pass (order 0) builds an island from elevation and moisture noise, `ores` (order 100) grows iron, gold, and diamond veins inside rock, and `pumpkins` (order 150) scatters pumpkin patches on open grass. Ore never replaces grass or forest.
 - Trees, stone, and pumpkins are `solid` (block movement); trees and stone are also `opaque` (block line of sight). All are mined by holding the left button. A tile's `hardness` is the seconds that takes by hand (tree 1.8, stone 5, pumpkin 0.6), and its `tool` (`'axe'` or `'pickaxe'`) names the tool that mines it four times faster.
 - Players spawn at the walkable tile nearest the island center.
 - `server.js` and `client.js` are empty stubs.
