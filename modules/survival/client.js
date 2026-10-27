@@ -2,17 +2,19 @@
 // keys, the target highlight, and the health display.
 // Item icons come from registerDrawer('item:<name>', ...) (Art draws them); items
 // without one show as a colored square with their initial.
-import { registries, registerClientSystem, registerHud } from '../../shared/registry.js';
+import { registries, registerClientSystem, registerHud, onEvent } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 import { safely } from '../../shared/safe.js';
 import { canCraft, orderRecipes, recipeCategory, CRAFT_CATEGORIES } from './crafting-order.js';
 import './tool-art.js';
 import './cabin-art.js';
 import './fantasy-buildings-art.js';
+import './chest-art.js';
 import { xpForLevel } from '../player/progression.js';
 import { drawBuildingPreview } from './building-preview.js';
 
 const SLOTS = 9, SLOT = 46, GAP = 4;
+const CHEST_REACH = 2.5; // matches chest-server.js: walk further away and the panel closes
 const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
 let synced = false;   // took our selected slot from the server once
@@ -68,6 +70,19 @@ export function inventoryLayout(game, w, h) {
   };
 }
 
+// The open chest's items on the left, the player's own on the right.
+export function chestLayout(game, w, h) {
+  const chest = game.entities.get(game._chestId);
+  const pw = Math.min(760, w - 24), ph = Math.max(200, Math.min(600, h - 200));
+  const x = (w - pw) / 2, y = Math.max(12, hotbarSlot(0, w, h).y - ph - 56), half = pw / 2;
+  const cols = Math.max(1, Math.floor((half - 24) / (SLOT + GAP))), rows = Math.max(1, Math.floor((ph - 108) / (SLOT + GAP)));
+  const grid = (inv, left, put) => Object.keys(inv || {}).slice(0, cols * rows).map((name, i) => ({ name, put,
+    x: left + 12 + (i % cols) * (SLOT + GAP), y: y + 64 + Math.floor(i / cols) * (SLOT + GAP), w: SLOT, h: SLOT }));
+  const stored = grid(chest?.inventory, x, false), mine = grid(game.me?.inventory, x + half, true);
+  return { x, y, pw, ph, half, chest, stored, mine, slots: [...stored, ...mine],
+    pickup: chest && !stored.length ? { x: x + 12, y: y + 64, w: Math.min(180, half - 24), h: 34 } : null };
+}
+
 const inside = (m, r) => m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h;
 const affordable = (game, r) => canCraft(r, game.me?.inventory || {});
 
@@ -87,7 +102,7 @@ registerClientSystem('survival-input', (game) => {
 
   if (k.pressed('KeyE') || k.pressed('Tab')) {
     if (!game.ui) { game.ui = 'inventory'; game._recipeScroll = 0; }
-    else if (game.ui === 'inventory') game.ui = null;
+    else if (game.ui === 'inventory' || game.ui === 'chest') game.ui = null;
   }
   if (game.ui !== 'inventory') picked = null;
 
@@ -112,6 +127,16 @@ registerClientSystem('survival-input', (game) => {
       else if (slot !== undefined && picked) { game.sendAction('hotbar', { slot, item: picked }); picked = null; }
       else picked = null;
     }
+    return;
+  }
+  if (game.ui === 'chest') {
+    const L = chestLayout(game, game.screen.w, game.screen.h);
+    if (!L.chest || Math.hypot(L.chest.x - me.x, L.chest.y - me.y) > CHEST_REACH) { game.ui = null; return; }
+    const one = k.clicked(2); // right click moves a single item, left click the whole stack
+    if (!k.clicked(0) && !one) return;
+    if (L.pickup && inside(m, L.pickup)) { if (!one) game.sendAction('chest', { id: L.chest.id, pickup: true }); return; }
+    const slot = L.slots.find((r) => inside(m, r));
+    if (slot) game.sendAction('chest', { id: L.chest.id, item: slot.name, put: slot.put, count: one ? 1 : undefined });
     return;
   }
   if (game.ui) return;
@@ -324,4 +349,52 @@ registerHud('inventory-screen', (ctx, game, w, h) => {
   ctx.fillStyle = C.ash;
   ctx.fillText(picked ? `now click a hotbar slot for ${picked}` : '1-9: equip hovered item · click category / recipe · scroll lists · E: close',
     L.x + L.pw / 2, L.y + L.ph - 18);
+});
+
+onEvent('net:chestOpen', (game, { id }) => {
+  if (game.ui && game.ui !== 'chest') return;
+  game.ui = 'chest';
+  game._chestId = id;
+});
+
+registerHud('chest-screen', (ctx, game, w, h) => {
+  if (game.ui !== 'chest' || !game.me) return;
+  const C = game.theme.colors, m = game.input.mouse, L = chestLayout(game, w, h);
+  if (!L.chest) return;
+  ctx.fillStyle = C.panel;
+  ctx.fillRect(L.x, L.y, L.pw, L.ph);
+  ctx.strokeStyle = C.purple;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(L.x, L.y, L.pw, L.ph);
+  ctx.strokeStyle = 'rgba(195,166,240,0.2)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(L.x + L.half, L.y + 12); ctx.lineTo(L.x + L.half, L.y + L.ph - 36); ctx.stroke();
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.font = game.font(30, 'display');
+  ctx.fillStyle = C.pumpkin;
+  ctx.fillText('Chest', L.x + 16, L.y + 30);
+  ctx.fillText('Inventory', L.x + L.half + 16, L.y + 30);
+
+  for (const r of L.stored) drawSlot(ctx, game, r, r.name, L.chest.inventory[r.name], inside(m, r));
+  for (const r of L.mine) drawSlot(ctx, game, r, r.name, game.me.inventory[r.name], inside(m, r));
+  ctx.font = game.font(15); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.ash;
+  if (!L.mine.length) ctx.fillText('Empty.', L.x + L.half + 16, L.y + 80);
+  if (L.pickup) {
+    const b = L.pickup;
+    ctx.fillStyle = inside(m, b) ? 'rgba(255,122,26,0.22)' : 'rgba(0,0,0,0.16)';
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = C.pumpkin; ctx.lineWidth = 1.5;
+    ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+    ctx.fillStyle = C.candle;
+    ctx.fillText('Pick up chest', b.x + 12, b.y + b.h / 2, b.w - 24);
+    ctx.fillStyle = C.ash;
+    ctx.fillText('Empty. Click your items to store them.', L.x + 16, b.y + b.h + 24, L.half - 32);
+  }
+
+  const hovered = L.slots.find((r) => inside(m, r));
+  ctx.textAlign = 'center';
+  ctx.font = game.font(13);
+  ctx.fillStyle = hovered ? C.candle : C.ash;
+  ctx.fillText(`${hovered ? `${hovered.name} · ` : ''}click: move stack · right click: move one · E: close`, L.x + L.pw / 2, L.y + L.ph - 18, L.pw - 24);
 });

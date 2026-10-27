@@ -75,13 +75,20 @@ registerEntityType('campfire', { fuel: 45, maxFuel: 90, light: 6, repels: true, 
 // than `scares` hostiles are close: a pack of three is brave enough to walk in.
 registerEntityType('jack-o-lantern', { light: 3.5, lightColor: '#ff8a1a', repels: true, scares: 2, color: '#e8761e' });
 
+// Chests keep their own inventory. Right click opens a panel (game.ui = 'chest')
+// that moves items between the chest and the player; empty chests can be picked up.
+registerItem('chest', { color: '#7a4f2a', places: 'chest' });
+registerRecipe('chest', { inputs: { wood: 8 }, output: { chest: 1 } });
+registerEntityType('chest', { interactive: true, inventory: {}, color: '#7a4f2a' });
+
 registerKeyHint('1-9/wheel', 'hotbar');
 registerKeyHint('E', 'inventory & crafting');
 registerKeyHint('RMB on fire', 'feed it');
 registerKeyHint('RMB on door', 'open / close');
+registerKeyHint('RMB on chest', 'open it');
 registerKeyHint('RMB with cabin', 'build north of entrance');
 registerKeyHint('RMB with house', 'build north of entrance');
 registerKeyHint('C', 'campfire (5 wood)');
 registerKeyHint('V', 'shield (3 wood 2 stone)');
 
-// TODO(survival team): hunger and food, chests.
+// TODO(survival team): hunger and food.

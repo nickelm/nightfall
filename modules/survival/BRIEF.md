@@ -36,6 +36,13 @@ Iron, gold and diamond axes require 2 wood and 3 of their matching mineral;
 their mining powers are 8, 12 and 20. Matching swords require 1 wood and 2
 minerals and deal 3, 4 and 5 damage respectively. The starter sword deals 2.
 
+Chests cost 8 wood (Buildings tab). Hold one and right-click a free tile to
+place it; right-click the chest to open a two-column panel (`game.ui = 'chest'`,
+`chest-server.js` and `chest-art.js`). Left click moves a whole stack across,
+right click moves one item; E, Tab, Esc or walking away closes it. An empty chest
+shows a "Pick up chest" button. Contents live in the chest entity's `inventory`
+and persist with the world. Test: `node modules/survival/test-chest.js`.
+
 Crafting sorts recipes that are affordable first. Within each group, higher
 equipment tiers come first, then damage and tool power; ties retain their original
 order. The list updates as inventory changes and remains scrollable.

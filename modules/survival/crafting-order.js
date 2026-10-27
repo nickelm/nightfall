@@ -5,7 +5,7 @@ export function recipeCategory(recipe, items) {
   const item = items.get(name);
   if (item?.tool) return 'Tools';
   if (item?.weapon || item?.damage || name === 'shield' || name === 'arrow' || name === 'dynamite') return 'Weapons';
-  if (['cabin', 'house', 'rohan-hall', 'minas-tirith', 'road', 'door', 'glass', 'thorns'].includes(name)) return 'Buildings';
+  if (['cabin', 'house', 'rohan-hall', 'minas-tirith', 'road', 'door', 'glass', 'thorns', 'chest'].includes(name)) return 'Buildings';
   if (['campfire', 'jack-o-lantern', 'redstone-wire', 'redstone-lamp', 'mega-lamp'].includes(name)) return 'Lighting';
   if (name === 'boat' || name === 'portal') return 'Travel';
   if (name === 'animal-pen') return 'Animals';
