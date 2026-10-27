@@ -33,6 +33,12 @@ registerEntityType('cabin', { light: 5, lightColor: '#ffca78', spawnProtection: 
 registerItem('house', { color: '#ad9b88', use: true });
 registerRecipe('house', { inputs: { wood: 40, stone: 15 }, output: { house: 1 } });
 registerEntityType('house', { light: 7, lightColor: '#ffca78', spawnProtection: 14 });
+registerTile('hanok-wall', { color: '#e0d1ad', solid: true, opaque: true, structure: true,
+  harvest: { item: 'wood', becomes: 'gravel' }, hardness: 4, tool: 'axe' });
+registerTile('hanok-floor', { color: '#ba9060', structure: true });
+registerItem('hanok', { color: '#64717b', use: true });
+registerRecipe('hanok', { inputs: { wood: 50, stone: 20 }, output: { hanok: 1 } });
+registerEntityType('hanok', { light: 7, lightColor: '#ffd79c', spawnProtection: 14 });
 
 registerItem('campfire',       { color: '#f80', places: 'campfire' });
 registerItem('jack-o-lantern', { color: '#ff8a1a', places: 'jack-o-lantern' });

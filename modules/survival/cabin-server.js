@@ -4,6 +4,7 @@ import { onAction, registerSystem } from '../../shared/registry.js';
 const buildings = {
   cabin: { width: 5, height: 4, wall: 'wood-wall', name: 'Cabin' },
   house: { width: 7, height: 6, wall: 'stone-block', name: 'House' },
+  hanok: { width: 9, height: 6, wall: 'hanok-wall', floor: 'hanok-floor', name: 'Hanok' },
 };
 
 onAction('use', (game, player, { x, y }) => {
@@ -26,7 +27,7 @@ onAction('use', (game, player, { x, y }) => {
   }
   for (let ty = top; ty <= y; ty++) for (let tx = x - half; tx <= x + half; tx++) {
     const edge = ty === top || ty === y || tx === x - half || tx === x + half;
-    game.setTile(tx, ty, tx === x && ty === y ? 'door-closed' : edge ? spec.wall : 'cabin-floor');
+    game.setTile(tx, ty, tx === x && ty === y ? 'door-closed' : edge ? spec.wall : spec.floor || 'cabin-floor');
   }
   game.give(player, kind, -1);
   game.spawn(kind, { x: x + 0.5, y: y - (spec.height - 1) / 2, owner: player.id });

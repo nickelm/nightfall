@@ -14,8 +14,8 @@ const FOG_SEEN = 170;   // alpha over tiles seen before but not visible now
 const FOG_UNSEEN = 255; // alpha over tiles never seen
 
 function buildingRoof(e, me) {
-  if (e.type !== 'cabin' && e.type !== 'house') return null;
-  const width = e.type === 'house' ? 7 : 5, height = e.type === 'house' ? 6 : 4;
+  if (e.type !== 'cabin' && e.type !== 'house' && e.type !== 'hanok') return null;
+  const width = e.type === 'hanok' ? 9 : e.type === 'house' ? 7 : 5, height = e.type === 'cabin' ? 4 : 6;
   const left = e.x - width / 2, top = e.y - (height - 1) / 2;
   const inside = me && me.x >= left + 1 && me.x < left + width - 1 && me.y >= top + 1 && me.y < top + height - 1;
   return { left, top, width, height, inside };
@@ -69,6 +69,10 @@ export function render(game, ctx, w, h) {
     const y = (roof.top - cam.y) * T + h / 2;
     const rw = roof.width * T, rh = (roof.height - 1) * T;
     if (x > w || y > h || x + rw < 0 || y + rh < 0) continue;
+    const roofDrawer = registries.drawers.get(`roof:${building.type}`);
+    if (roofDrawer) {
+      ctx.save(); safely(`roof:${building.type}`, roofDrawer, ctx, x, y, rw, rh, T); ctx.restore(); continue;
+    }
     ctx.fillStyle = building.type === 'house' ? '#41343d' : '#56352e'; ctx.fillRect(x - T * .08, y - T * .08, rw + T * .16, rh + T * .16);
     ctx.fillStyle = building.type === 'house' ? '#70606a' : '#855544'; ctx.fillRect(x, y, rw, rh);
     ctx.strokeStyle = building.type === 'house' ? '#50434d' : '#624033'; ctx.lineWidth = Math.max(1, T * .04);

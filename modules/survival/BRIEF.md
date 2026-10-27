@@ -18,6 +18,11 @@ and protection; the remaining walls and floor stay in the world.
 Houses cost 40 wood and 15 stone and use a 7x6 footprint with stone walls.
 They work like cabins, with light radius 7 and monster-spawn protection radius 14.
 
+Hanok houses cost 50 wood and 20 stone and occupy 9x6 clear tiles north of the
+entrance. They have grey curved tile roofs, timber-framed lattice walls and a
+wooden maru floor. They share house lighting, spawn protection and roof cutaway.
+Run `BUILDING=hanok node modules/survival/test-house.js` for the hanok checks.
+
 Iron, gold and diamond axes require 2 wood and 3 of their matching mineral;
 their mining powers are 8, 12 and 20. Matching swords require 1 wood and 2
 minerals and deal 3, 4 and 5 damage respectively. The starter sword deals 2.

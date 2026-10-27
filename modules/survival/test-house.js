@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 import { spawnMonster } from '../creatures/server.js';
 import { World } from '../../shared/world.js';
+const kind = process.env.BUILDING || 'house';
+const hanok = kind === 'hanok', left = hanok ? 236 : 237;
+const floor = hanok ? 'hanok-floor' : 'cabin-floor';
 
 process.env.PORT = '8137'; process.env.SEED = '4242'; process.env.START_TIME = '10';
 const { game } = await import('../../server/index.js');
@@ -20,21 +23,23 @@ async function connect(name) {
 try {
   const a = await connect('Builder'), b = await connect('Observer'), p = game.entities.get(a.id);
   game._animalSpawnAt = Infinity;
-  for (let y = 237; y <= 246; y++) for (let x = 236; x <= 244; x++) game.setTile(x, y, 'grass');
+  game._wildlifeAt = Infinity;
+  for (const e of game.entities.values()) if (e.type !== 'player' && (e.animal || e.hp > 0)) game.despawn(e.id);
+  for (let y = 237; y <= 246; y++) for (let x = 235; x <= 245; x++) game.setTile(x, y, 'grass');
   b.move(230.5, 230.5); a.move(240.5, 245.5); await until(() => p.y === 245.5 && game.entities.get(b.id).x === 230.5);
-  game.give(p, 'wood', 40); game.give(p, 'stone', 15);
-  a.action('craft', { recipe: 'house' }); await until(() => p.inventory.house === 1);
+  game.give(p, 'wood', hanok ? 50 : 40); game.give(p, 'stone', hanok ? 20 : 15);
+  a.action('craft', { recipe: kind }); await until(() => p.inventory[kind] === 1);
   assert.ok(!p.inventory.wood && !p.inventory.stone);
-  a.action('hotbar', { slot: 0, item: 'house' }); a.action('select', { slot: 0 }); await until(() => p.hotbar[0] === 'house');
-  game.setTile(237, 239, 'water'); a.action('use', { x: 240, y: 244 }); await sleep(150);
-  assert.equal(p.inventory.house, 1, 'failed placement keeps the item');
-  game.setTile(237, 239, 'grass'); a.action('use', { x: 240, y: 244 });
-  await until(() => !p.inventory.house && b.world.tile(240, 244).name === 'door-closed');
-  const house = [...game.entities.values()].find(e => e.type === 'house');
+  a.action('hotbar', { slot: 0, item: kind }); a.action('select', { slot: 0 }); await until(() => p.hotbar[0] === kind);
+  game.setTile(left, 239, 'water'); a.action('use', { x: 240, y: 244 }); await sleep(150);
+  assert.equal(p.inventory[kind], 1, 'failed placement keeps the item');
+  game.setTile(left, 239, 'grass'); a.action('use', { x: 240, y: 244 });
+  await until(() => !p.inventory[kind] && b.world.tile(240, 244).name === 'door-closed');
+  const house = [...game.entities.values()].find(e => e.type === kind);
   assert.ok(house && house.light === 7 && house.spawnProtection === 14);
-  assert.equal(game.world.tile(237, 239).name, 'stone-block');
-  assert.equal(game.world.tile(238, 240).name, 'cabin-floor');
-  assert.equal(game.world.tile(242, 243).name, 'cabin-floor');
+  assert.equal(game.world.tile(left, 239).name, hanok ? 'hanok-wall' : 'stone-block');
+  assert.equal(game.world.tile(left + 1, 240).name, floor);
+  assert.equal(game.world.tile(hanok ? 243 : 242, 243).name, floor);
   a.action('interact', { x: 240, y: 244 }); await until(() => b.world.tile(240, 244).name === 'door-open');
   assert.ok(!game.world.blocked(240.5, 243.5));
   a.move(240.5, 243.5); await until(() => p.y === 243.5);
@@ -45,7 +50,7 @@ try {
     fake.entities.get(1).x = 30;
     assert.ok(spawnMonster(fake, { x: 0, y: 0 }, { type: 'slime' }));
   } finally { Math.random = random; }
-  game.setTile(237, 239, 'gravel'); await until(() => !game.entities.has(house.id));
-  console.log('PASS house crafting, placement, multiplayer entry, stone walls, light, spawn protection and dismantling');
+  game.setTile(left, 239, 'gravel'); await until(() => !game.entities.has(house.id));
+  console.log(`PASS ${kind} crafting, placement, multiplayer entry, walls, light, spawn protection and dismantling`);
 } catch (err) { console.error(err); process.exitCode = 1; }
 finally { sockets.forEach(ws => ws.close()); setTimeout(() => process.exit(process.exitCode || 0), 100); }
