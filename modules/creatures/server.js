@@ -1,14 +1,18 @@
 // TEAM CREATURES (server): spawning and AI. Creatures are server-owned entities;
 // moving them here moves them on every client automatically.
 import { registries, registerSystem, onEvent } from '../../shared/registry.js';
-import { updateDirector, noteDamage } from './director.js';
+import { updateDirector, noteDamage, pickType, TUNING } from './director.js';
+import { lightReaches, isLit } from './light.js';
 import './farm-server.js';
 import './dynamite-server.js';
+import './monsters-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
+// Everything that crawls out at night and is gone by morning.
+const NIGHT_MONSTERS = new Set([...SLIMES, 'spider', 'zombie', 'skeleton', 'bone-arrow']);
 
-// Share of director spawns that are blood slimes: rare on the first night, more later.
+// Share of slime spawns that are blood slimes: rare on the first night, more later.
 const bloodChance = (game, horde) => horde ? 0.1 : Math.min(0.4, 0.1 + 0.08 * (game.timeOfDay().day - 1));
 
 // Burning campfires (entities with repels: true) keep monsters out of most of their light.
@@ -19,44 +23,51 @@ const bodyRadius = (size) => 0.3 * (size || 1); // collision radius in tiles; sl
 const typeSize = (type) => registries.entityTypes.get(type)?.defaults?.size || 1;
 
 // Where and when monsters appear is up to the game director (director.js).
-// This is how it spawns one slime near a player: out of sight and out of protected light.
-// Horde members spawn further out, all from the same direction, and hunt from afar.
-export function spawnSlime(game, player, { horde, angle }) {
+// This is how it spawns one monster near a player: out of sight and out of protected light.
+//   horde  further out, all from the same direction (`angle`), and hunting from afar
+//   raid   `player` is the base: raiders gather `raidDistance` tiles out and march on it
+//   dark   on any unlit tile a few tiles from the player, even inside walls
+// `type` defaults to the director's table for tonight; slimes may come out as blood slimes.
+export function spawnMonster(game, player, { horde, angle, type, dark, raid } = {}) {
+  type ||= pickType(game.timeOfDay().day);
+  if (type === 'slime' && Math.random() < bloodChance(game, horde)) type = 'blood-slime';
   const fl = fires(game);
   // Electric lamps prevent spawning throughout their illuminated radius without
   // repelling monsters that have already spawned. An unpowered lamp has light 0.
   const lamps = [...game.entities.values()].filter((e) => e.type === 'redstone-lamp' && e.light > 0);
+  const lights = dark ? [...game.entities.values()].filter((e) => e.light > 0) : null;
+  const r = bodyRadius(typeSize(type));
   for (let tries = 0; tries < 12; tries++) {
-    const a = horde ? angle + (Math.random() - 0.5) : Math.random() * Math.PI * 2;
-    const d = horde ? 13 + Math.random() * 3 : 9 + Math.random() * 5;
-    const x = player.x + Math.cos(a) * d, y = player.y + Math.sin(a) * d;
-    const type = Math.random() < bloodChance(game, horde) ? 'blood-slime' : 'slime';
-    if (!game.world.blocked(x, y, bodyRadius(typeSize(type))) && !fireAt(fl, x, y, 1) &&
-        !lamps.some((lamp) => Math.hypot(lamp.x - x, lamp.y - y) < lamp.light)) {
-      return game.spawn(type, { x, y, ...(horde ? { aggro: 25 } : {}) });
+    let x, y;
+    if (raid) {
+      const a = angle + (Math.random() - 0.5) * 0.8, d = TUNING.raidDistance + Math.random() * 4;
+      x = player.x + Math.cos(a) * d; y = player.y + Math.sin(a) * d;
+    } else if (dark) {
+      const a = Math.random() * Math.PI * 2, d = TUNING.darkMin + Math.random() * (TUNING.darkMax - TUNING.darkMin);
+      x = Math.floor(player.x + Math.cos(a) * d) + 0.5; y = Math.floor(player.y + Math.sin(a) * d) + 0.5;
+    } else {
+      const a = horde ? angle + (Math.random() - 0.5) : Math.random() * Math.PI * 2;
+      const d = horde ? 13 + Math.random() * 3 : 9 + Math.random() * 5;
+      x = player.x + Math.cos(a) * d; y = player.y + Math.sin(a) * d;
     }
+    if (game.world.blocked(x, y, r) || (!raid && fireAt(fl, x, y, 1)) ||
+        lamps.some((lamp) => Math.hypot(lamp.x - x, lamp.y - y) < lamp.light)) continue;
+    if (dark && isLit(game, x, y, lights)) continue;
+    const props = { x, y };
+    if (horde) props.aggro = 25;
+    if (raid) Object.assign(props, { raider: true, raid: { x: player.x, y: player.y } });
+    const e = game.spawn(type, props);
+    if (dark) game.broadcast('darkSpawn', { x, y, type });
+    return e;
   }
   return null;
 }
 
-registerSystem('director', (game, dt) => updateDirector(game, dt, spawnSlime));
-onEvent('damage', (game, hit) => noteDamage(game, hit));
+/** A slime (or blood slime) the way the director places any monster. */
+export const spawnSlime = (game, player, opts = {}) => spawnMonster(game, player, { ...opts, type: 'slime' });
 
-// Opaque walls cast shadows; glass and other transparent tiles do not.
-function lightReaches(world, source, target) {
-  const dx = target.x - source.x, dy = target.y - source.y;
-  if (dx * dx + dy * dy > source.light * source.light) return false;
-  const steps = Math.ceil(Math.hypot(dx, dy) * 2.5);
-  let lastX = Math.floor(source.x), lastY = Math.floor(source.y);
-  for (let i = 1; i < steps; i++) {
-    const x = Math.floor(source.x + dx * i / steps), y = Math.floor(source.y + dy * i / steps);
-    if (x === lastX && y === lastY) continue;
-    lastX = x; lastY = y;
-    if (x === Math.floor(target.x) && y === Math.floor(target.y)) return true;
-    if (world.tile(x, y)?.opaque) return false;
-  }
-  return true;
-}
+registerSystem('director', (game, dt) => updateDirector(game, dt, spawnMonster));
+onEvent('damage', (game, hit) => noteDamage(game, hit));
 
 // All actual light sources burn hostiles once per second, regardless of overlap.
 // Use game.damage so normal hit feedback, kills, and loot remain intact.
@@ -80,7 +91,13 @@ registerSystem('director-debug', (game) => {
   const d = game.director;
   if (!d || game.time - (d._sentAt || 0) < 1) return;
   d._sentAt = game.time;
-  game.broadcast('director', { state: d.state, budget: d.budget, threat: d.threat, intensity: d.intensity, factors: d.factors, hordes: d.hordes });
+  const census = {};
+  for (const e of game.entities.values()) if (e.hostile && e.hp > 0) census[e.type] = (census[e.type] || 0) + 1;
+  game.broadcast('director', {
+    state: d.state, budget: d.budget, threat: d.threat, intensity: d.intensity, factors: d.factors, hordes: d.hordes,
+    pulses: (d.pulses || []).map((p) => ({ in: p.at - game.time, n: p.n, kind: p.kind })),
+    raidAt: d.raidAt ?? null, raid: d.raid || null, bloodMoon: !!d.bloodMoon, census,
+  });
 });
 
 // Chase the nearest player within `aggro` tiles (8; hordes 25), otherwise wander. Never step into
@@ -160,7 +177,7 @@ onEvent('killed', (game, victim) => {
 });
 registerSystem('drops', updateDrops);
 
-// Slimes (blood slimes too) melt at dawn.
+// Night monsters (and their arrows) are gone at dawn.
 onEvent('dawn', (game) => {
-  for (const e of [...game.entities.values()]) if (SLIMES.has(e.type)) game.despawn(e.id);
+  for (const e of [...game.entities.values()]) if (NIGHT_MONSTERS.has(e.type)) game.despawn(e.id);
 });
