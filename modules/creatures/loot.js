@@ -47,6 +47,12 @@ export const LOOT = {
       { item: 'arrow', weight: 4, min: 2, max: 5 },
     ],
   },
+  // Predators drop mostly meat, some fur.
+  wolf:         { rolls: 2, table: [{ item: 'meat', weight: 3, min: 1, max: 1 }, { item: 'fur', weight: 1, min: 1, max: 1 }] },
+  'snow-wolf':  { rolls: 2, table: [{ item: 'meat', weight: 3, min: 1, max: 1 }, { item: 'fur', weight: 1, min: 1, max: 1 }] },
+  bear:         { rolls: 3, table: [{ item: 'meat', weight: 2, min: 1, max: 2 }, { item: 'fur', weight: 1, min: 1, max: 1 }] },
+  'polar-bear': { rolls: 3, table: [{ item: 'meat', weight: 2, min: 1, max: 2 }, { item: 'fur', weight: 1, min: 1, max: 2 }] },
+  lion:         { rolls: 2, table: [{ item: 'meat', weight: 2, min: 1, max: 2 }, { item: 'fur', weight: 1, min: 1, max: 1 }] },
 };
 
 export const DROP_SECONDS = 90; // drops left on the ground vanish after this long

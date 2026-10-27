@@ -6,6 +6,7 @@ import { lightReaches, isLit } from './light.js';
 import './farm-server.js';
 import './dynamite-server.js';
 import './monsters-server.js';
+import './wildlife-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
@@ -108,7 +109,7 @@ registerSystem('director-debug', (game) => {
   if (!d || game.time - (d._sentAt || 0) < 1) return;
   d._sentAt = game.time;
   const census = {};
-  for (const e of game.entities.values()) if (e.hostile && e.hp > 0) census[e.type] = (census[e.type] || 0) + 1;
+  for (const e of game.entities.values()) if ((e.hostile || e.predator) && e.hp > 0) census[e.type] = (census[e.type] || 0) + 1;
   game.broadcast('director', {
     state: d.state, budget: d.budget, threat: d.threat, intensity: d.intensity, factors: d.factors, hordes: d.hordes,
     pulses: (d.pulses || []).map((p) => ({ in: p.at - game.time, n: p.n, kind: p.kind })),
