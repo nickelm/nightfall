@@ -41,6 +41,39 @@ export function spawnSlime(game, player, { horde, angle }) {
 registerSystem('director', (game, dt) => updateDirector(game, dt, spawnSlime));
 onEvent('damage', (game, hit) => noteDamage(game, hit));
 
+// Opaque walls cast shadows; glass and other transparent tiles do not.
+function lightReaches(world, source, target) {
+  const dx = target.x - source.x, dy = target.y - source.y;
+  if (dx * dx + dy * dy > source.light * source.light) return false;
+  const steps = Math.ceil(Math.hypot(dx, dy) * 2.5);
+  let lastX = Math.floor(source.x), lastY = Math.floor(source.y);
+  for (let i = 1; i < steps; i++) {
+    const x = Math.floor(source.x + dx * i / steps), y = Math.floor(source.y + dy * i / steps);
+    if (x === lastX && y === lastY) continue;
+    lastX = x; lastY = y;
+    if (x === Math.floor(target.x) && y === Math.floor(target.y)) return true;
+    if (world.tile(x, y)?.opaque) return false;
+  }
+  return true;
+}
+
+// All actual light sources burn hostiles once per second, regardless of overlap.
+// Use game.damage so normal hit feedback, kills, and loot remain intact.
+registerSystem('light-burn', game => {
+  const entities = [...game.entities.values()];
+  const lights = entities.filter(e => e.light > 0);
+  for (const monster of entities) {
+    if (!monster.hostile || !(monster.hp > 0)) continue;
+    const lit = lights.some(light => light !== monster && lightReaches(game.world, light, monster));
+    if (!lit) { delete monster._lightBurnAt; continue; }
+    if (monster._lightBurnAt == null) { monster._lightBurnAt = game.time + 1; continue; }
+    if (game.time < monster._lightBurnAt) continue;
+    monster._lightBurnAt = game.time + 1;
+    const { x, y } = monster;
+    if (game.damage(monster, 1, null)) game.broadcast('lightBurn', { x, y });
+  }
+});
+
 // Debug view for tuning: clients press F3 to see this.
 registerSystem('director-debug', (game) => {
   const d = game.director;
