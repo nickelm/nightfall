@@ -21,6 +21,9 @@ All hostile creatures take one damage per second while exposed to an entity's
 light (including player torches, lamps, fires, and lava glow). Multiple lights do
 not stack; opaque walls block the effect. Ordinary hit, kill, and loot rules apply.
 
+Director and split spawns cannot overlap constructed blocks, including open doors,
+redstone wire, and placed thorns. Ordinary ground left after mining remains spawnable.
+
 ## Raising animals
 
 Pigs, sheep, chickens, and cows appear in the field. Right-click one to catch it as a
