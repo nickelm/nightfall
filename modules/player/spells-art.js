@@ -13,13 +13,14 @@ const rand = (a, b) => a + Math.random() * (b - a);
 // --------------------------------------------------------------- particles ----
 // Positions and speeds in tiles; life and max in seconds.
 const particles = [];
-const washes = []; // full-screen red-orange flashes from nearby big explosions
+const washes = []; // full-screen flashes from nearby big explosions: { x, y, life, max, delay, inner, outer }
 
 function add(p) { particles.push({ vx: 0, vy: 0, drag: 0, grow: 0, ...p, max: p.life }); }
 
 // Fire color by remaining life t (1 -> 0): white-yellow, orange, then deep red.
 const fire = (t, a = 1) => `hsla(${Math.round(8 + 47 * t)}, 100%, ${Math.round(42 + 48 * t)}%, ${a})`;
 const gold = (t, a = 1) => `hsla(${Math.round(40 + 12 * t)}, 100%, ${Math.round(55 + 35 * t)}%, ${a})`;
+const violet = (t, a = 1) => `hsla(${Math.round(268 + 22 * t)}, 100%, ${Math.round(50 + 42 * t)}%, ${a})`;
 
 function burst(x, y, size, kind) {
   const big = size === 'big', heal = kind === 'heal';
@@ -45,6 +46,7 @@ function burst(x, y, size, kind) {
 registerClientSystem('spell-particles', (game, dt) => {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
+    if (p.delay > 0) { p.delay -= dt; continue; } // waiting for its turn (staggered rings)
     p.life -= dt;
     if (p.life <= 0) { particles.splice(i, 1); continue; }
     const k = Math.max(0, 1 - p.drag * dt);
@@ -52,7 +54,17 @@ registerClientSystem('spell-particles', (game, dt) => {
     p.x += p.vx * dt; p.y += p.vy * dt;
     p.size += p.grow * dt;
   }
-  for (let i = washes.length - 1; i >= 0; i--) if ((washes[i].life -= dt) <= 0) washes.splice(i, 1);
+  for (let i = washes.length - 1; i >= 0; i--) {
+    const wsh = washes[i];
+    if (wsh.delay > 0) wsh.delay -= dt;
+    else if ((wsh.life -= dt) <= 0) washes.splice(i, 1);
+  }
+  if (craters.some((c) => now() - c.born > CRATER_SECONDS * 1000)) {
+    const keep = craters.filter((c) => now() - c.born <= CRATER_SECONDS * 1000);
+    craters.length = 0;
+    craters.push(...keep);
+    indexCraters();
+  }
 
   // flame trails behind every fireball we can see
   for (const e of game.entities.values()) {
@@ -70,22 +82,24 @@ registerHud('spell-fx', (ctx, game, w, h) => {
   if (game.ui) return;
   // smoke darkens, so it draws normally first
   for (const p of particles) {
-    if (p.kind !== 'smoke') continue;
+    if (p.kind !== 'smoke' || p.delay > 0) continue;
     const s = game.worldToScreen(p.x, p.y), t = p.life / p.max;
     ctx.fillStyle = `rgba(28,16,30,${0.45 * t})`;
     ctx.beginPath(); ctx.arc(s.x, s.y, p.size * T, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalCompositeOperation = 'lighter';
   for (const wsh of washes) {
-    const s = game.worldToScreen(wsh.x, wsh.y), a = 0.32 * (wsh.life / wsh.max), r = Math.max(w, h) * 0.7;
+    if (wsh.delay > 0) continue;
+    const s = game.worldToScreen(wsh.x, wsh.y), a = (wsh.strength ?? 0.32) * (wsh.life / wsh.max), r = Math.max(w, h) * 0.7;
     const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
-    g.addColorStop(0, `rgba(255,150,40,${a})`);
-    g.addColorStop(0.4, `rgba(220,40,10,${a * 0.5})`);
+    g.addColorStop(0, `rgba(${wsh.inner || '255,150,40'},${a})`);
+    g.addColorStop(0.4, `rgba(${wsh.outer || '220,40,10'},${a * 0.5})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
   }
   for (const p of particles) {
+    if (p.delay > 0) continue;
     const s = game.worldToScreen(p.x, p.y), t = p.life / p.max;
     if (p.kind === 'spark') {
       const r = Math.max(1, p.size * T * (0.5 + t));
@@ -118,6 +132,87 @@ registerHud('spell-fx', (ctx, game, w, h) => {
     }
   }
   ctx.globalCompositeOperation = 'source-over';
+});
+
+// ---------------------------------------------------------------- craters ----
+// Scorch marks where fire lands. They are part of the ground: every tile drawer is
+// wrapped (once all modules have registered theirs, on 'ready') to paint the craters
+// over its tile, so they lie under creatures and players and night and fog dim them
+// like the tiles. Each one smoulders for a moment, then fades over CRATER_SECONDS.
+const CRATER_SECONDS = 20, CRATER_FADE = 8, EMBER_SECONDS = 3, MAX_CRATERS = 150;
+const craters = [];            // { x, y, r, born, seed }
+const craterTiles = new Map(); // 'tx,ty' -> craters overlapping that tile
+
+function indexCraters() {
+  craterTiles.clear();
+  for (const c of craters) {
+    for (let ty = Math.floor(c.y - c.r); ty <= Math.floor(c.y + c.r); ty++) {
+      for (let tx = Math.floor(c.x - c.r); tx <= Math.floor(c.x + c.r); tx++) {
+        const key = `${tx},${ty}`;
+        if (!craterTiles.has(key)) craterTiles.set(key, []);
+        craterTiles.get(key).push(c);
+      }
+    }
+  }
+}
+
+function addCrater(x, y, size) {
+  const r = size === 'nova' ? 1.5 : size === 'big' ? 0.85 : 0.55;
+  const old = craters.find((c) => Math.hypot(c.x - x, c.y - y) < 0.3); // a fresh hit on an old crater
+  if (old) { old.born = now(); old.r = Math.max(old.r, r); }
+  else craters.push({ x, y, r, born: now(), seed: rand(0, Math.PI * 2) });
+  if (craters.length > MAX_CRATERS) craters.shift();
+  indexCraters();
+}
+
+function drawCraters(ctx, list, px, py, size, tx, ty) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(px, py, size, size); ctx.clip(); // the neighbours paint their own part
+  for (const c of list) {
+    const age = (now() - c.born) / 1000, a = Math.min(1, (CRATER_SECONDS - age) / CRATER_FADE);
+    if (a <= 0) continue;
+    const cx = px + (c.x - tx) * size, cy = py + (c.y - ty) * size, r = c.r * size;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(10,5,3,${0.8 * a})`);
+    g.addColorStop(0.5, `rgba(28,14,8,${0.6 * a})`);
+    g.addColorStop(0.8, `rgba(55,30,18,${0.35 * a})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py, size, size);
+    ctx.strokeStyle = `rgba(8,4,2,${0.55 * a})`; // cracks splaying out from the blast
+    ctx.lineWidth = 1.5;
+    for (let k = 0; k < 6; k++) {
+      const ang = c.seed + k * 1.05 + Math.sin(c.seed * 7 + k) * 0.3, len = r * (0.9 + 0.35 * Math.sin(c.seed * 3 + k * 2));
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(ang) * r * 0.3, cy + Math.sin(ang) * r * 0.3);
+      ctx.lineTo(cx + Math.cos(ang + 0.15) * len, cy + Math.sin(ang + 0.15) * len);
+      ctx.stroke();
+    }
+    if (age < EMBER_SECONDS) { // still smouldering
+      const e = 1 - age / EMBER_SECONDS;
+      const h = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.6);
+      h.addColorStop(0, `rgba(255,130,40,${0.7 * e})`);
+      h.addColorStop(1, 'rgba(200,30,0,0)');
+      ctx.fillStyle = h;
+      ctx.fillRect(px, py, size, size);
+    }
+  }
+  ctx.restore();
+}
+
+onEvent('ready', () => {
+  for (const tile of registries.tiles) {
+    const key = `tile:${tile.name}`, inner = registries.drawers.get(key);
+    if (inner?.craters || /water|lava/.test(tile.name)) continue;
+    const wrapped = (ctx, t, px, py, size, tx, ty, game) => {
+      if (inner) inner(ctx, t, px, py, size, tx, ty, game);
+      else { ctx.fillStyle = t.color; ctx.fillRect(px, py, size, size); } // what render.js does without a drawer
+      const list = craterTiles.get(`${tx},${ty}`);
+      if (list) drawCraters(ctx, list, px, py, size, tx, ty);
+    };
+    wrapped.craters = true;
+    registries.drawers.set(key, wrapped);
+  }
 });
 
 // ------------------------------------------------------------------ sound ----
@@ -161,6 +256,7 @@ onEvent('net:boom', (game, { x, y, size, kind }) => {
   if (kind === 'heal') tone(660, 0.4, 'triangle', 0.06 * v, 1320);
   else if (size === 'big') { rumble(0.6, 0.35 * v, 500); tone(80, 0.4, 'sine', 0.12 * v, 35); }
   else { rumble(0.3, 0.22 * v, 900); tone(140, 0.2, 'sine', 0.06 * v, 50); }
+  if (kind !== 'heal') addCrater(x, y, size);
   if (!game.canSee(x, y)) return;
   burst(x, y, size, kind);
   if (size === 'big') {
@@ -200,6 +296,31 @@ onEvent('net:shellHit', (game, { id }) => {
   if (!e || !game.canSee(e._rx, e._ry)) return;
   add({ kind: 'ring', x: e._rx, y: e._ry, life: 0.3, size: 0.55, grow: 1.2, color: gold });
   tone(1200, 0.12, 'triangle', 0.05 * loudness(game, e.x, e.y), 900);
+});
+
+// A nova: the caster flashes purple-white and rings of violet fire roll out to its
+// radius, three in a row, while the whole screen strobes violet if you are close.
+onEvent('net:nova', (game, { x, y, radius }) => {
+  const v = loudness(game, x, y);
+  rumble(0.9, 0.4 * v, 350);
+  tone(70, 0.8, 'sine', 0.16 * v, 28);
+  tone(1400, 0.6, 'triangle', 0.05 * v, 220);
+  addCrater(x, y, 'nova');
+  if (!game.canSee(x, y)) return;
+  add({ kind: 'core', x, y, life: 0.4, size: 1.6, color: violet });
+  for (let i = 0; i < 3; i++) {
+    add({ kind: 'ring', x, y, life: 0.45, size: 0.3, grow: radius / 0.4, color: i === 1 ? fire : violet, delay: i * 0.12 });
+  }
+  for (let i = 0; i < 70; i++) {
+    const a = rand(0, Math.PI * 2), s = rand(radius * 1.5, radius * 3.2);
+    add({ kind: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, drag: 2.5, life: rand(0.3, 0.8), size: rand(0.05, 0.1),
+      color: i % 4 ? violet : fire, delay: rand(0, 0.15) });
+  }
+  if (v > 0.4) {
+    for (let i = 0; i < 3; i++) {
+      washes.push({ x, y, life: 0.09, max: 0.09, delay: i * 0.13, strength: 0.45, inner: '230,170,255', outer: '120,40,200' });
+    }
+  }
 });
 
 // A sword swing that taunts: a red shout ring from the fighter.
@@ -253,9 +374,9 @@ registerHud('spell-shell', (ctx, game) => {
 // ----------------------------------------------------- health and mana bars ----
 const maxHpOf = (e) => e.maxHp ?? registries.entityTypes.get(e.type)?.defaults?.hp ?? e.hp;
 
-// A bar over every other player we can see (above the name Art writes at 0.5 tiles),
+// A bar over every other player we can see (above the name and level line Art writes),
 // and over any wounded creature. A creature taunted by a sword also gets a red "!".
-const NAME_PX = 16;
+const NAME_PX = 16, RANK_PX = 13;
 registerHud('health-bars', (ctx, game) => {
   if (game.ui) return;
   const C = game.theme.colors;
@@ -268,7 +389,8 @@ registerHud('health-bars', (ctx, game) => {
     if (!game.canSee(e._rx, e._ry)) continue;
     const p = game.worldToScreen(e._rx, e._ry);
     const bw = T * 0.8, bh = 5, x = p.x - bw / 2;
-    const y = isPlayer ? p.y - T * 0.5 - NAME_PX - bh - (e.maxMana > 0 ? 3 : 0) : p.y - T * 0.62 * (e.size || 1) - bh;
+    const above = NAME_PX + (e.level ? RANK_PX : 0) + (e.maxMana > 0 ? 3 : 0); // name, then Art's level and title line
+    const y = isPlayer ? p.y - T * 0.5 - above - bh : p.y - T * 0.62 * (e.size || 1) - bh;
     if (taunted) {
       ctx.font = game.font(18, 'display');
       ctx.textAlign = 'center';

@@ -1,7 +1,8 @@
 // TEAM PLAYER (client helper): casting with the staff in hand. What is under the
 // cursor picks the spell (sight.js): on a foe or empty ground, left click throws a
 // fireball and right click calls a firestorm; on a friend, holding left keeps a focus
-// shell on them and right click heals. Right click on something interactive (a
+// shell on them and holding right keeps healing them (no need to stay on target); on
+// yourself, holding left keeps healing you and right click sets off a nova. Right click on something interactive (a
 // campfire, a door) still interacts. The server checks everything again; this side
 // only aims and shows a ring or a reticle.
 import { registries, registerHud, onEvent } from '../../shared/registry.js';
@@ -10,8 +11,9 @@ import { relation, clearLine, SPELL_FOR } from './sight.js';
 
 const PICK_RADIUS = 0.6; // tiles from the cursor to a target's center (scaled by its size)
 
-let leftLock = null;  // { shell } from a left press that cast, until the button is released
-let rightLock = false; // a right press that cast, until released (so it does not start a guard)
+let leftLock = null;  // { shell } or { heal, next } from a left press that cast, until released
+let rightLock = false; // a right press that cast, until released (so it does not start a guard);
+                       // { heal, next } while holding a heal on a friend
 let lastFail = 0;
 
 const holdsStaff = (game) => game.me?.hotbar?.[game.selectedSlot] === 'staff';
@@ -63,13 +65,31 @@ export function updateCasting(game, free, interacting = () => false) {
     const a = aim('left');
     if (a.spell === 'shell') game.sendAction('shell', { target: a.target });
     else game.sendAction('cast', a);
-    leftLock = { shell: a.spell === 'shell' };
+    leftLock = a.spell === 'heal' ? healLock(a.target) : { shell: a.spell === 'shell' };
+  } else if (leftLock?.heal != null) {
+    keepHealing(game, leftLock);
   }
   if (k.clicked(2) && !interacting()) {
-    game.sendAction('cast', aim('right'));
-    rightLock = true;
+    const a = aim('right');
+    game.sendAction('cast', a);
+    rightLock = a.spell === 'heal' ? healLock(a.target) : true;
+  } else if (rightLock?.heal != null) {
+    keepHealing(game, rightLock);
   }
-  return { left: !!leftLock, right: rightLock };
+  return { left: !!leftLock, right: !!rightLock };
+}
+
+// Just past the heal cooldown, so the server never drops a repeat as too early.
+const healEvery = () => (registries.spells.get('heal')?.cooldown ?? 0.6) * 1000 + 60;
+const healLock = (id) => ({ heal: id, next: performance.now() + healEvery() });
+
+// Holding the button heals the same player again each cooldown while they are hurt.
+function keepHealing(game, lock) {
+  if (performance.now() < lock.next) return;
+  const t = game.entities.get(lock.heal);
+  if (!t || !(t.hp > 0) || t.hp >= t.maxHp) return;
+  game.sendAction('cast', { spell: 'heal', target: lock.heal });
+  lock.next = performance.now() + healEvery();
 }
 
 // A ring around whatever the staff would hit, with the two spells it would cast; over
@@ -78,6 +98,14 @@ export function updateCasting(game, free, interacting = () => false) {
 registerHud('spell-target', (ctx, game) => {
   if (game.ui || !game.me || !holdsStaff(game) || !game.input.mouse.active) return;
   const hover = hoverTarget(game), C = game.theme.colors;
+  const healing = game.entities.get(leftLock?.heal ?? rightLock?.heal);
+  if (healing) { // the player we keep healing, wherever the cursor goes
+    const p = game.worldToScreen(healing._rx, healing._ry), pulse = 1 + 0.08 * Math.sin(performance.now() / 90);
+    ctx.strokeStyle = C.candle;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, TILE_PX * 0.55 * pulse, 0, Math.PI * 2); ctx.stroke();
+    if (hover?.e === healing) return;
+  }
   if (!hover) {
     const c = cursor(game), p = game.worldToScreen(c.x, c.y);
     const ok = reachable(game, c.x, c.y, 'firestorm');
@@ -97,7 +125,7 @@ registerHud('spell-target', (ctx, game) => {
   const { e, rel } = hover;
   const ok = reachable(game, e._rx, e._ry, SPELL_FOR.left[rel]);
   const p = game.worldToScreen(e._rx, e._ry), r = TILE_PX * 0.5 * (e.size || 1);
-  const color = !ok ? C.ash : rel === 'foe' ? C.pumpkin : C.candle;
+  const color = !ok ? C.ash : rel === 'foe' ? C.pumpkin : rel === 'self' ? C.moon : C.candle;
   const spin = performance.now() / 600;
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;

@@ -57,7 +57,13 @@ try {
   // heal a hurt friend
   pb.hp = 4;
   a.action('cast', { spell: 'heal', target: pb.id });
-  await until(() => pb.hp === 8);
+  const heal = (await import('../../shared/registry.js')).registries.spells.get('heal');
+  await until(() => pb.hp === 4 + heal.amount);
+  assert.ok(heal.cost <= 2, 'healing stays cheap');
+  await sleep(heal.cooldown * 1000 + 100);
+  a.action('cast', { spell: 'heal', target: pb.id }); // held RMB repeats the cast each cooldown
+  await until(() => pb.hp === 4 + 2 * heal.amount);
+  pb.hp = 8;
 
   // focus shell: the friend takes no damage and cannot attack until released
   pa.mana = 20;
@@ -87,6 +93,20 @@ try {
   await until(() => a.events.slice(booms).filter(m => m.name === 'boom' && m.data.size === 'big').length >= 10, 4000);
   assert.ok(byMage.some(h => pack.includes(h.target)), 'firestorm hurts the pack');
   await until(() => ![...game.entities.values()].some(e => e.type === 'firestorm' || e.type === 'blast'), 2000); // storm and blasts burn out
-  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal, focus shell, sword taunt, firestorm at a point');
+  // heal yourself (LMB on self)
+  pa.hp = 5; await sleep(heal.cooldown * 1000 + 100);
+  a.action('cast', { spell: 'heal', target: pa.id });
+  await until(() => pa.hp === 5 + heal.amount);
+
+  // nova (RMB on self): a heavy hit on every foe around, a lighter one on friends, none on the caster
+  const nova = (await import('../../shared/registry.js')).registries.spells.get('nova');
+  pa.mana = 20; pa.hp = 10; pb.hp = pb.maxHp;
+  const hpB = pb.hp, before = byMage.length;
+  a.action('cast', { spell: 'nova', target: pa.id });
+  await until(() => byMage.slice(before).some(h => h.target === zt && h.amount === nova.damage));
+  assert.equal(pa.hp, 10, 'the nova spares its caster');
+  assert.equal(pb.hp, hpB - nova.friendDamage, 'and friends caught in it');
+  assert.ok(a.events.some(m => m.name === 'nova'));
+  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal (friend and self), focus shell, sword taunt, firestorm at a point, nova');
 } catch (err) { console.error(err); process.exitCode = 1; }
 finally { sockets.forEach(ws => ws.close()); setTimeout(() => process.exit(process.exitCode || 0), 100); }

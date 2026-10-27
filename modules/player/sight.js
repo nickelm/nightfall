@@ -2,15 +2,16 @@
 // caster can see it. Server and client run the same checks, so the target ring
 // on the client agrees with what the server allows.
 
-// Which spell each mouse button casts on a foe or a friend while holding the staff.
+// Which spell each mouse button casts on a foe, a friend, or yourself while holding the staff.
 export const SPELL_FOR = {
-  left: { foe: 'fireball', friend: 'shell' },
-  right: { foe: 'firestorm', friend: 'heal' },
+  left: { foe: 'fireball', friend: 'shell', self: 'heal' },
+  right: { foe: 'firestorm', friend: 'heal', self: 'nova' },
 };
 
-/** 'foe' (monsters and predators), 'friend' (another living player), or null. */
+/** 'foe' (monsters and predators), 'friend' (another living player), 'self', or null. */
 export function relation(caster, e) {
-  if (!e || !(e.hp > 0) || e.id === caster.id) return null;
+  if (!e || !(e.hp > 0)) return null;
+  if (e.id === caster.id) return 'self';
   if (e.hostile || e.predator) return 'foe';
   if (e.type === 'player') return 'friend';
   return null;
