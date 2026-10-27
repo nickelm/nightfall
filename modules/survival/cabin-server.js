@@ -1,6 +1,7 @@
 import { onAction, registerSystem } from '../../shared/registry.js';
 
 import { buildings, buildingPlan } from './building-plan.js';
+import './building-migration.js';
 
 onAction('use', (game, player, { x, y }) => {
   const kind = player.hotbar?.[player.selected], spec = buildings[kind];

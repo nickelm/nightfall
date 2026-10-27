@@ -37,8 +37,20 @@ registerTile('hanok-wall', { color: '#e0d1ad', solid: true, opaque: true, struct
   harvest: { item: 'wood', becomes: 'gravel' }, hardness: 4, tool: 'axe' });
 registerTile('hanok-floor', { color: '#ba9060', structure: true });
 registerItem('hanok', { color: '#64717b', use: true });
-registerRecipe('hanok', { inputs: { wood: 50, stone: 20 }, output: { hanok: 1 } });
 registerEntityType('hanok', { light: 7, lightColor: '#ffd79c', spawnProtection: 14 });
+// Legacy hanok definitions above keep old saves readable until migration.
+registerTile('rohan-wall', { color: '#a78450', solid: true, opaque: true, structure: true,
+  harvest: { item: 'wood', becomes: 'gravel' }, hardness: 4, tool: 'axe' });
+registerTile('rohan-floor', { color: '#a27b47', structure: true });
+registerItem('rohan-hall', { color: '#a6a15b', use: true });
+registerRecipe('rohan-hall', { inputs: { wood: 50, stone: 20 }, output: { 'rohan-hall': 1 } });
+registerEntityType('rohan-hall', { light: 7, lightColor: '#ffd79c', spawnProtection: 14 });
+registerTile('white-city-wall', { color: '#deded7', solid: true, opaque: true, structure: true,
+  harvest: { item: 'stone', becomes: 'gravel' }, hardness: 8, tool: 'pickaxe' });
+registerTile('white-city-floor', { color: '#c4c8c6', structure: true });
+registerItem('minas-tirith', { color: '#eef0df', use: true });
+registerRecipe('minas-tirith', { inputs: { stone: 200, gold: 10, diamond: 5 }, output: { 'minas-tirith': 1 } });
+registerEntityType('minas-tirith', { light: 10, lightColor: '#f2efd4', spawnProtection: 22 });
 
 registerItem('campfire',       { color: '#f80', places: 'campfire' });
 registerItem('jack-o-lantern', { color: '#ff8a1a', places: 'jack-o-lantern' });

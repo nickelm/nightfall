@@ -8,7 +8,7 @@ import { safely } from '../../shared/safe.js';
 import { canCraft, orderRecipes, recipeCategory, CRAFT_CATEGORIES } from './crafting-order.js';
 import './tool-art.js';
 import './cabin-art.js';
-import './hanok-art.js';
+import './fantasy-buildings-art.js';
 import { xpForLevel } from '../player/progression.js';
 import { drawBuildingPreview } from './building-preview.js';
 

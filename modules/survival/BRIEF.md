@@ -18,12 +18,16 @@ and protection; the remaining walls and floor stay in the world.
 Houses cost 40 wood and 15 stone and use a 7x6 footprint with stone walls.
 They work like cabins, with light radius 7 and monster-spawn protection radius 14.
 
-Hanok houses cost 50 wood and 20 stone and occupy 9x6 clear tiles north of the
-entrance. They have grey curved tile roofs, timber-framed lattice walls and a
-wooden maru floor. They share house lighting, spawn protection and roof cutaway.
-Run `BUILDING=hanok node modules/survival/test-house.js` for the hanok checks.
+Rohan halls cost 50 wood and 20 stone and occupy 9x6 clear tiles north of the
+entrance, with golden thatch, timber framing and green banners. Old hanok
+buildings, wall/floor edits, inventory and hotbar slots migrate to Rohan.
+Minas Tirith costs 200 stone, 10 gold and 5 diamond and occupies 13x10 tiles.
+Its white walls and tiered citadel reveal a walkable interior on entry; light
+radius is 10 and monster-spawn protection radius is 22. Both share the building
+preview, door and dismantling rules. Use `BUILDING=rohan-hall` or
+`BUILDING=minas-tirith` with `node modules/survival/test-house.js` to test them.
 
-Holding a cabin, house or hanok shows a translucent tile footprint: walls, floor,
+Holding a building shows a translucent tile footprint: walls, floor,
 door and the entrance approach. Green means buildable; red means blocked, with
 overlapping tiles emphasized. Preview and server construction share the same
 footprint, ground, range and entity checks in `building-plan.js`.

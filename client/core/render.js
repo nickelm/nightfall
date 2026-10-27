@@ -5,6 +5,7 @@ import { registries } from '../../shared/registry.js';
 import { safely } from '../../shared/safe.js';
 import { THEME, font } from './theme.js';
 import { drawSettings } from './settings.js';
+import { buildings } from '../../modules/survival/building-plan.js';
 
 const lightCanvas = document.createElement('canvas');
 const lctx = lightCanvas.getContext('2d');
@@ -14,8 +15,9 @@ const FOG_SEEN = 170;   // alpha over tiles seen before but not visible now
 const FOG_UNSEEN = 255; // alpha over tiles never seen
 
 function buildingRoof(e, me) {
-  if (e.type !== 'cabin' && e.type !== 'house' && e.type !== 'hanok') return null;
-  const width = e.type === 'hanok' ? 9 : e.type === 'house' ? 7 : 5, height = e.type === 'cabin' ? 4 : 6;
+  const spec = buildings[e.type];
+  if (!spec) return null;
+  const { width, height } = spec;
   const left = e.x - width / 2, top = e.y - (height - 1) / 2;
   const inside = me && me.x >= left + 1 && me.x < left + width - 1 && me.y >= top + 1 && me.y < top + height - 1;
   return { left, top, width, height, inside };

@@ -2,7 +2,8 @@
 export const buildings = {
   cabin: { width: 5, height: 4, wall: 'wood-wall', name: 'Cabin' },
   house: { width: 7, height: 6, wall: 'stone-block', name: 'House' },
-  hanok: { width: 9, height: 6, wall: 'hanok-wall', floor: 'hanok-floor', name: 'Hanok' },
+  'rohan-hall': { width: 9, height: 6, wall: 'rohan-wall', floor: 'rohan-floor', name: 'Rohan Hall' },
+  'minas-tirith': { width: 13, height: 10, wall: 'white-city-wall', floor: 'white-city-floor', name: 'Minas Tirith' },
 };
 const ground = new Set(['grass', 'gravel', 'sand', 'snow']);
 
