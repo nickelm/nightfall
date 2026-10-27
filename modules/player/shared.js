@@ -43,7 +43,7 @@ registerItem('staff', { color: '#6a3fa0', gear: 2 });
 registerRecipe('staff', { inputs: { wood: 3, 'monster-goo': 3 }, output: { staff: 1 } });
 registerSpell('fireball',  { on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
 registerSpell('firestorm', { on: 'foe',    free: 'point',     sight: false, cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
-registerSpell('heal',      { on: ['friend', 'self'],          sight: false, cost: 2,  cooldown: 0.6, range: 11, amount: 2 }); // cheap: hold RMB to keep healing
+registerSpell('heal',      { on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0.6, range: 22, amount: 2 }); // cheap and far-reaching: hold to keep healing
 registerSpell('shell',     { on: 'friend',                    cost: 2,  cooldown: 0,   range: 11, drain: 4 }); // drain: mana per second held
 // A purple nova bursting out of the caster: huge damage to every foe in reach, but it
 // also hurts any friend caught in it (a shell protects them); the caster is unharmed.
