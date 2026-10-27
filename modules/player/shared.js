@@ -5,8 +5,16 @@ import { registerEntityType, registerItem, registerKeyHint } from '../../shared/
 // hotbar: 9 item names (or null) pointing into the inventory; the held item is hotbar[selected].
 registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
 
-// Every new player starts with a sword. `damage` is how hard a held item hits (default 1).
-registerItem('sword', { color: '#cfd3da', damage: 2 });
+// Weapons. `damage` is how hard a held item hits in melee (default 1). The optional
+// `weapon` field picks an attack kind from modules/player/weapons.js and tunes it;
+// items without it swing like a melee weapon. Ranged weapons spend `ammo` items,
+// whose `ammo.damage` decides how hard each projectile hits.
+registerItem('sword', { color: '#cfd3da', damage: 2, weapon: { kind: 'melee', reach: 0.9, cooldown: 0.35 } });
+registerItem('bow',   { color: '#8b5a2b', weapon: { kind: 'ranged', ammo: 'arrow', projectile: 'arrow', speed: 14, range: 12, cooldown: 0.5 } });
+registerItem('arrow', { color: '#d8c8a0', ammo: { damage: 1 } });
+
+// A flying arrow. ttl is seconds left in the air; a faint light shows it at night.
+registerEntityType('arrow', { vx: 0, vy: 0, damage: 1, owner: null, ttl: 1, light: 0.6, lightColor: '#ffd9a0' });
 
 registerKeyHint('WASD', 'move (W toward cursor)');
 registerKeyHint('LMB/Space', 'mine / attack');

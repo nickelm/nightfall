@@ -2,23 +2,24 @@
 // All damage goes through game.damage(), which emits a 'damage' event first;
 // the guard logic below cancels hits by listening to it.
 import { registries, onAction, onEvent, registerSystem } from '../../shared/registry.js';
+import { ATTACKS, stepProjectiles } from './weapons.js';
 
 const PARRY_WINDOW = 0.25;   // seconds after pressing guard (no shield)
 const PARRY_COOLDOWN = 0.6;  // so mashing RMB does not parry everything
 const STUN = 1.2;            // seconds a parried attacker stays stunned
 
-// Melee: hit everything with hp in a short arc in front of the player.
-// The held item's `damage` decides how hard (the sword: 2, anything else: 1).
+// Attack with the held item: its `weapon.kind` picks the attack in weapons.js
+// (melee arc, ranged shot); items without a `weapon` field swing in melee.
 onAction('attack', (game, player) => {
   if ((player._attackCooldown || 0) > game.time || player.guarding) return;
-  player._attackCooldown = game.time + 0.35;
-  const held = registries.items.get(player.hotbar?.[player.selected]);
-  const cx = player.x + player.dir.x * 0.8, cy = player.y + player.dir.y * 0.8;
-  for (const e of game.near(cx, cy, 0.9, (e) => e.hp > 0 && e.type !== 'player')) {
-    if (game.damage(e, held?.damage ?? 1, player)) game.knockback(e, player.x, player.y, 0.6);
-  }
-  game.broadcast('swing', { id: player.id });
+  const def = registries.items.get(player.hotbar?.[player.selected]);
+  const w = def?.weapon;
+  const attack = ATTACKS[w?.kind] || ATTACKS.melee;
+  player._attackCooldown = game.time + (w?.cooldown ?? 0.35);
+  attack(game, player, def);
 });
+
+registerSystem('projectiles', stepProjectiles);
 
 onAction('guard', (game, player, { on }) => {
   player.guarding = !!on;
@@ -47,11 +48,15 @@ onEvent('damage', (game, hit) => {
   }
 });
 
-// New players start with a sword (once per name; returning players keep what they have).
+// Starting kit: a sword, plus a bow with 10 arrows. Bump KIT_VERSION to hand a new
+// part of the kit to returning players too (they keep what they have).
+const KIT_VERSION = 2;
 onEvent('playerJoined', (game, p) => {
-  if (p._kit) return;
+  const v = p._kitVersion || (p._kit ? 1 : 0);
+  if (v < 1) game.give(p, 'sword');
+  if (v < 2) { game.give(p, 'bow'); game.give(p, 'arrow', 10); }
   p._kit = true;
-  game.give(p, 'sword');
+  p._kitVersion = KIT_VERSION;
 });
 
 // Respawn dead players at the island center with full health.

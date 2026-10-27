@@ -4,7 +4,7 @@
 //   right mouse                interact with what you aim at (feed a fire), else use the
 //                              held item (place a block, a jack-o-lantern), else guard
 //   Shift (hold)               always guards
-import { registries, registerClientSystem, registerHud } from '../../shared/registry.js';
+import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 
 const REACH = 1.8;       // tiles: mining and swinging
@@ -116,10 +116,25 @@ registerClientSystem('movement', (game, dt) => {
 });
 
 // A faint wedge in front of your character: where swings, mining, and placing land.
+// With a ranged weapon in hand, a dashed line out to its range instead.
 registerHud('aim', (ctx, game) => {
   const me = game.me;
   if (!me || game.ui || !game.settings.showAim) return;
   const p = game.worldToScreen(me.x, me.y), a = Math.atan2(me.dir.y, me.dir.x), r = REACH * TILE_PX, half = 0.35;
+  const w = heldItem(game)?.weapon;
+  if (w?.kind === 'ranged') {
+    const len = (w.range ?? 12) * TILE_PX;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,122,26,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(a) * TILE_PX * 0.5, p.y + Math.sin(a) * TILE_PX * 0.5);
+    ctx.lineTo(p.x + Math.cos(a) * len, p.y + Math.sin(a) * len);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = 'rgba(255,122,26,0.10)';
   ctx.strokeStyle = 'rgba(255,122,26,0.35)';
   ctx.lineWidth = 1.5;
@@ -129,4 +144,39 @@ registerHud('aim', (ctx, game) => {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+});
+
+onEvent('net:noAmmo', (game, { item }) => game.notify(`Out of ${item}s`, 2, game.theme.colors.blood));
+
+// Placeholder looks for the bow and arrows; Art may override them (it loads last).
+registerDrawer('arrow', (ctx, e, sx, sy, T) => {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(Math.atan2(e.vy, e.vx));
+  ctx.strokeStyle = '#d8c8a0';
+  ctx.lineWidth = Math.max(1.5, T * 0.06);
+  ctx.beginPath(); ctx.moveTo(-T * 0.3, 0); ctx.lineTo(T * 0.2, 0); ctx.stroke();
+  ctx.fillStyle = '#cfd3da';
+  ctx.beginPath(); ctx.moveTo(T * 0.32, 0); ctx.lineTo(T * 0.18, -T * 0.07); ctx.lineTo(T * 0.18, T * 0.07); ctx.fill();
+  ctx.restore();
+});
+
+registerDrawer('item:bow', (ctx, item, cx, cy, s) => {
+  ctx.strokeStyle = '#8b5a2b';
+  ctx.lineWidth = Math.max(2, s * 0.08);
+  ctx.beginPath(); ctx.arc(cx - s * 0.12, cy, s * 0.32, -1.2, 1.2); ctx.stroke();
+  ctx.strokeStyle = '#e8e0d0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - s * 0.12 + Math.cos(-1.2) * s * 0.32, cy + Math.sin(-1.2) * s * 0.32);
+  ctx.lineTo(cx - s * 0.12 + Math.cos(1.2) * s * 0.32, cy + Math.sin(1.2) * s * 0.32);
+  ctx.stroke();
+});
+
+registerDrawer('item:arrow', (ctx, item, cx, cy, s) => {
+  ctx.strokeStyle = '#d8c8a0';
+  ctx.lineWidth = Math.max(1.5, s * 0.06);
+  ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy + s * 0.3); ctx.lineTo(cx + s * 0.22, cy - s * 0.22); ctx.stroke();
+  ctx.fillStyle = '#cfd3da';
+  ctx.beginPath(); ctx.moveTo(cx + s * 0.32, cy - s * 0.32); ctx.lineTo(cx + s * 0.12, cy - s * 0.24); ctx.lineTo(cx + s * 0.24, cy - s * 0.12); ctx.fill();
 });
