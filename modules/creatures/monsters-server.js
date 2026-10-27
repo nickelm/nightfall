@@ -20,7 +20,19 @@ const BASH = { 'door-closed': { seconds: 2, becomes: 'door-open' }, 'wood-wall':
 const fires = (game) => [...game.entities.values()].filter((e) => e.repels);
 const fireAt = (list, x, y, pad = 0) => list.find((f) => Math.hypot(f.x - x, f.y - y) < f.light * 0.8 + pad);
 
+// The player whose sword swing taunted this creature (modules/player/weapons.js sets
+// `tauntedBy` and `tauntedUntil`), while the taunt lasts and they are alive and near.
+const TAUNT_LEASH = 15;
+export function taunter(game, e) {
+  if (!((e.tauntedUntil || 0) > game.time)) return null;
+  const p = game.entities.get(e.tauntedBy);
+  return p && p.hp > 0 && Math.hypot(p.x - e.x, p.y - e.y) < TAUNT_LEASH ? p : null;
+}
+
+// The player to go after: whoever taunted us, else the nearest within range.
 export function nearestPlayer(game, e, range) {
+  const taunted = taunter(game, e);
+  if (taunted) return taunted;
   let best = null, bestD = range;
   for (const p of game.players()) {
     const d = Math.hypot(p.x - e.x, p.y - e.y);

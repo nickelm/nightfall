@@ -8,7 +8,7 @@
 // They spawn only by day, but whatever is out at dusk keeps hunting. Campfires keep them out.
 import { registerSystem, onEvent } from '../../shared/registry.js';
 import { PREDATORS } from './shared.js';
-import { stunned, heading, steer, spread, nearestPlayer } from './monsters-server.js';
+import { stunned, heading, steer, spread, nearestPlayer, taunter } from './monsters-server.js';
 
 export const WILDLIFE = {
   every: 5,               // seconds between population checks
@@ -125,6 +125,8 @@ registerSystem('wildlife-ai', (game, dt) => {
     }
     if (e.fleeing && game.time > e._fleeUntil) { e.fleeing = false; e._calmUntil = game.time + 30; }
 
+    const taunted = !e.fleeing && taunter(game, e); // a sword swing turns predators on the fighter
+    if (taunted) e._target = taunted.id;
     let t = e._target != null ? game.entities.get(e._target) : null;
     if (t && (!(t.hp > 0) || fromHome > def.leash)) { // lost interest
       t = null; e._target = null; e._calmUntil = game.time + 6;

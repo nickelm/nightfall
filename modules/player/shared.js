@@ -1,10 +1,13 @@
 // TEAM PLAYER: movement, combat, magic, health, death.
-import { registerEntityType, registerItem, registerRecipe, registerKeyHint } from '../../shared/registry.js';
+import { registerEntityType, registerItem, registerRecipe, registerKeyHint, registerSpell } from '../../shared/registry.js';
 
 // `light` is the torch every player carries: enough to see by, too weak to keep monsters away.
 // hotbar: 9 item names (or null) pointing into the inventory; the held item is hotbar[selected].
 // stamina: seconds of running (Shift while moving); the server drains and refills it.
-registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina: 4, maxStamina: 4, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
+// mana: spell power; maxMana is 0 until the player owns a staff (spells-server.js).
+// shelled: a friend's focus shell protects this player (no damage, no attacks).
+// channeling: id of the friend this player is shelling, or null.
+registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina: 4, maxStamina: 4, mana: 0, maxMana: 0, shelled: false, channeling: null, hotbar: [null, null, null, null, null, null, null, null, null], selected: 0 });
 
 // Weapons. `damage` is how hard a held item hits in melee (default 1). The optional
 // `weapon` field picks an attack kind from modules/player/weapons.js and tunes it;
@@ -32,5 +35,22 @@ registerKeyHint('RMB water with boat', 'board');
 registerKeyHint('Boat', 'lands automatically');
 registerKeyHint('RMB portal', 'enter; WASD travel, Space exit');
 
-// TODO(player team): spells, e.g.
-// registerSpell('firebolt', { cost: 2, cooldown: 1 });
+// Magic. Craft a staff to get a mana bar; with the staff in hand, the mouse button and
+// what is under the cursor pick the spell (sight.js). Every spell needs line of sight.
+// `free`: cast at empty ground too, as a shot in that direction or at that point.
+registerItem('staff', { color: '#6a3fa0', gear: 2 });
+registerRecipe('staff', { inputs: { wood: 3, 'monster-goo': 3 }, output: { staff: 1 } });
+registerSpell('fireball',  { on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
+registerSpell('firestorm', { on: 'foe',    free: 'point',     cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
+registerSpell('heal',      { on: 'friend',                    cost: 6,  cooldown: 1.2, range: 11, amount: 4 });
+registerSpell('shell',     { on: 'friend',                    cost: 2,  cooldown: 0,   range: 11, drain: 4 }); // drain: mana per second held
+
+// A homing fireball; a short-lived burst of light where something explodes (blast);
+// meteors raining on an area (firestorm). All carry `light`, so they light the night.
+registerEntityType('fireball', { vx: 0, vy: 0, target: null, owner: null, damage: 3, ttl: 2, light: 2.2, lightColor: '#ff6a1a' });
+registerEntityType('blast', { light: 0, lightColor: '#ffe070', age: 0, ttl: 0.6, peak: 3.5, hot: '#ffe070', cool: '#ff3a10' });
+registerEntityType('firestorm', { radius: 2.5, ttl: 1.8, owner: null, light: 3, lightColor: '#ff3a10' });
+
+registerKeyHint('Staff LMB', 'fireball / shell friend (hold)');
+registerKeyHint('Staff RMB', 'firestorm / heal friend');
+registerKeyHint('Sword', 'swings taunt nearby foes');

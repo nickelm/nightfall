@@ -8,6 +8,8 @@ import { registries, registerClientSystem, registerHud, registerDrawer, onEvent 
 import { TILE_PX } from '../../shared/config.js';
 import { updateMovementControl } from './movement-control.js';
 import './portal-art.js';
+import './spells-art.js';
+import { updateCasting } from './spells-input.js';
 
 const REACH = 1.8;       // tiles: mining and swinging
 const PLACE_REACH = 2.5; // tiles: right-click use and place
@@ -66,10 +68,13 @@ registerClientSystem('movement', (game, dt) => {
     if (len > AIM_DEAD_ZONE) me.dir = { x: ax / len, y: ay / len };
   }
 
+  // --- staff in hand: clicks cast spells (spells-input.js) ---
+  const cast = updateCasting(game, free, () => !!interactTarget(game));
+
   // --- right mouse: interact, use the held item, or guard ---
   let rightGuard = false;
   useTimer -= dt;
-  if (free && k.mouseDown(2)) {
+  if (free && k.mouseDown(2) && !cast.right) {
     const it = interactTarget(game);
     const def = heldItem(game);
     if (it) {
@@ -140,7 +145,7 @@ registerClientSystem('movement', (game, dt) => {
   }
 
   // --- left mouse / Space: mine a harvestable tile, otherwise swing ---
-  const holding = free && (k.mouseDown(0) || k.down('Space'));
+  const holding = free && !cast.left && (k.mouseDown(0) || k.down('Space'));
   let target = null;
   if (holding) {
     const p = aimPoint(game);
@@ -155,7 +160,7 @@ registerClientSystem('movement', (game, dt) => {
     mining = null;
     game.sendAction('mine', { stop: true });
   }
-  if (free && !target && (k.clicked(0) || k.pressed('Space'))) game.sendAction('attack', {});
+  if (free && !target && !cast.left && (k.clicked(0) || k.pressed('Space'))) game.sendAction('attack', {});
 });
 
 export function terrainSpeed(world, player) {
