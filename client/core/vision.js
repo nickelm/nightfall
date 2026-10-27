@@ -31,6 +31,8 @@ function lineOfSight(world, x0, y0, x1, y1) {
 // Mark every tile one viewer at (cx, cy) can see.
 function markVisibleFrom(world, v, cx, cy, lights, needLight) {
   const R = VIEW_RADIUS;
+  // Distant lights cannot illuminate any tile inside this viewer's sight circle.
+  const nearbyLights = needLight ? lights.filter(l => Math.abs(l.x - cx) <= R + l.r && Math.abs(l.y - cy) <= R + l.r) : lights;
   for (let ty = Math.floor(cy - R); ty <= Math.ceil(cy + R); ty++) {
     for (let tx = Math.floor(cx - R); tx <= Math.ceil(cx + R); tx++) {
       if (!world.inBounds(tx, ty)) continue;
@@ -38,7 +40,7 @@ function markVisibleFrom(world, v, cx, cy, lights, needLight) {
       if (v.visible[i]) continue; // another player already sees it
       const px = tx + 0.5, py = ty + 0.5;
       if ((px - cx) ** 2 + (py - cy) ** 2 > R * R) continue;
-      if (needLight && !lights.some((l) => (l.x - px) ** 2 + (l.y - py) ** 2 <= l.r2)) continue;
+      if (needLight && !nearbyLights.some((l) => (l.x - px) ** 2 + (l.y - py) ** 2 <= l.r2)) continue;
       if (!lineOfSight(world, cx, cy, px, py)) continue;
       v.visible[i] = 1;
       v.seen[i] = 1;
@@ -57,7 +59,7 @@ export function updateVision(game) {
   const lights = [];
   if (needLight) {
     for (const e of game.entities.values()) {
-      if (e.light > 0) lights.push({ x: e._rx ?? e.x, y: e._ry ?? e.y, r2: (e.light * 0.85) ** 2 });
+      if (e.light > 0) { const r = e.light * 0.85; lights.push({ x: e._rx ?? e.x, y: e._ry ?? e.y, r, r2: r * r }); }
     }
   }
 

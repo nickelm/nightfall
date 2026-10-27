@@ -103,6 +103,7 @@ export function render(game, ctx, w, h) {
       if (!e.light) continue;
       const sx = (e._rx - cam.x) * T + w / 2, sy = (e._ry - cam.y) * T + h / 2;
       const r = e.light * T * (1 + 0.03 * Math.sin(performance.now() / 120 + e.id)); // slight flicker
+      if (sx < -r || sy < -r || sx > w + r || sy > h + r) continue;
       const g = lctx.createRadialGradient(sx, sy, 0, sx, sy, r);
       g.addColorStop(0, 'rgba(0,0,0,1)');
       g.addColorStop(0.55, 'rgba(0,0,0,0.85)');
@@ -143,14 +144,19 @@ export function render(game, ctx, w, h) {
       const x = Math.floor(building.x), y = Math.floor(roof.top) + roof.height - 1;
       return game.world.inBounds(x, y) && visible[y * W + x] ? roof : null;
     }).filter(Boolean);
+    const roofMask = new Uint8Array(cols * rows);
+    for (const roof of visibleRoofs) {
+      const left = Math.max(x0, Math.ceil(roof.left)), right = Math.min(x1, Math.ceil(roof.left + roof.width) - 1);
+      const top = Math.max(y0, Math.ceil(roof.top)), bottom = Math.min(y1, Math.ceil(roof.top + roof.height - 1) - 1);
+      for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) roofMask[(y - y0) * cols + x - x0] = 1;
+    }
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const tx = x0 + c, ty = y0 + r, o = (r * cols + c) * 4;
         let a = FOG_UNSEEN;
         if (game.world.inBounds(tx, ty)) {
           const i = ty * W + tx;
-          const roof = visibleRoofs.some(r => tx >= r.left && tx < r.left + r.width && ty >= r.top && ty < r.top + r.height - 1);
-          a = visible[i] || roof ? 0 : seen[i] ? FOG_SEEN : FOG_UNSEEN;
+          a = visible[i] || roofMask[r * cols + c] ? 0 : seen[i] ? FOG_SEEN : FOG_UNSEEN;
         }
         img.data[o] = fog[0]; img.data[o + 1] = fog[1]; img.data[o + 2] = fog[2]; img.data[o + 3] = a;
       }
