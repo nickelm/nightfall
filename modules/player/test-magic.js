@@ -63,7 +63,8 @@ try {
   const heal = (await import('../../shared/registry.js')).registries.spells.get('heal');
   await until(() => pb.hp === 4 + heal.amount);
   game.setTile(233, 239, 'grass');
-  assert.ok(heal.cost <= 2, 'healing stays cheap');
+  assert.ok(heal.cost <= 1, 'healing stays cheap');
+  assert.equal(heal.range, 2 * (await import('../../shared/registry.js')).registries.spells.get('fireball').range, 'and reaches twice as far as a fireball');
   await sleep(heal.cooldown * 1000 + 100);
   a.action('cast', { spell: 'heal', target: pb.id }); // held RMB repeats the cast each cooldown
   await until(() => pb.hp === 4 + 2 * heal.amount);
