@@ -3,6 +3,7 @@
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import './farm-art.js';
 import './dynamite-art.js';
+import './giant-potion-art.js';
 import './first-person.js';
 
 // Blood slime: the slime drawing (from Art) scaled up by `size`, in the slime's own red.

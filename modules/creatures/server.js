@@ -4,6 +4,7 @@ import { registries, registerSystem, onEvent } from '../../shared/registry.js';
 import { updateDirector, noteDamage } from './director.js';
 import './farm-server.js';
 import './dynamite-server.js';
+import './giant-potion-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
