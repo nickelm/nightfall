@@ -526,6 +526,13 @@ registerDrawer('player', (ctx, e, x, y, T, game) => {
   const held = e.hotbar?.[e.id === game.myId ? game.selectedSlot : e.selected];
   const cloak = flashing(e) ? '#fff' : e.color;
 
+  if (e.sailing) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(aim);
+    ctx.fillStyle = '#513421'; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.48, T * 0.31, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a66f3e'; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.39, T * 0.23, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#dfaf71'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  }
+
   shadow(ctx, x, y, T * 0.3);
   ctx.save();
   ctx.translate(x, y);

@@ -13,6 +13,8 @@ registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina:
 registerItem('sword', { color: '#cfd3da', damage: 2, weapon: { kind: 'melee', reach: 0.9, cooldown: 0.35 } });
 registerItem('bow',   { color: '#8b5a2b', weapon: { kind: 'ranged', ammo: 'arrow', projectile: 'arrow', speed: 14, range: 12, cooldown: 0.5 } });
 registerItem('arrow', { color: '#d8c8a0', ammo: { damage: 1 } });
+registerItem('boat', { color: '#9d663b', use: true });
+registerRecipe('boat', { inputs: { wood: 5 }, output: { boat: 1 } });
 registerRecipe('arrow', { inputs: { wood: 1 }, output: { arrow: 3 } });
 
 // A flying arrow. ttl is seconds left in the air; a faint light shows it at night.
@@ -23,6 +25,8 @@ registerKeyHint('LMB/Space', 'mine / attack');
 registerKeyHint('RMB', 'place / guard');
 registerKeyHint('Shift', 'run (guard when still)');
 registerKeyHint('Esc', 'settings');
+registerKeyHint('RMB water with boat', 'board');
+registerKeyHint('B on land', 'leave boat');
 
 // TODO(player team): spells, e.g.
 // registerSpell('firebolt', { cost: 2, cooldown: 1 });

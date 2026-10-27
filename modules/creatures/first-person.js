@@ -33,7 +33,8 @@ function rgb(color) {
   rgbCache.set(color, c);
   return c;
 }
-const isWall = (t) => !!t && (t.solid || t.opaque);
+// Water blocks walking but is a floor surface, including while sailing.
+const isWall = (t) => !!t && t.name !== 'water' && (t.solid || t.opaque);
 
 // --- turning and the virtual mouse ---
 function parkMouse(game) {
