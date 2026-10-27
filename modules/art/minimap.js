@@ -5,6 +5,10 @@
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 
 const SIZE = 182;          // minimap side in pixels (matches the clock panel's width)
+/** Minimap side on a screen w x h pixels: smaller on phones. */
+export const minimapSize = (w, h = Infinity) => Math.min(SIZE, Math.round(w * 0.3), Math.round(h * 0.35));
+/** On short touch screens (phones held sideways) the touch controls fill the right side: map in the top left. */
+export const minimapTopLeft = (game, h) => !!game._touch?.on && h < 600;
 const REPORT_EVERY = 1;    // seconds between reports of newly seen tiles
 const REDRAW_EVERY = 0.4;  // seconds between minimap image refreshes
 const MAX_PER_REPORT = 8000;
@@ -84,19 +88,20 @@ function repaint(game, m) {
   c.putImageData(img, 0, 0);
 }
 
-registerHud('minimap', (ctx, game, w) => {
+registerHud('minimap', (ctx, game, w, h) => {
   const m = game._teamMap, me = game.me;
   if (!m?.show || !m.canvas || !me || game.ui || !game.vision) return;
 
   // just below the clock and player list (core HUD, top right)
   const players = [...game.entities.values()].filter((e) => e.type === 'player');
-  const x = w - 190, y = 8 + 34 + players.length * 18 + 8, s = SIZE / game.world.w;
+  const SIDE = minimapSize(w, h), topLeft = minimapTopLeft(game, h);
+  const x = topLeft ? 12 : w - 8 - SIDE, y = topLeft ? 12 : 8 + 34 + players.length * 18 + 8, s = SIDE / game.world.w;
   const C = game.theme.colors;
 
   ctx.fillStyle = C.panel;
-  ctx.fillRect(x - 4, y - 4, SIZE + 8, SIZE * (game.world.h / game.world.w) + 8);
+  ctx.fillRect(x - 4, y - 4, SIDE + 8, SIDE * (game.world.h / game.world.w) + 8);
   ctx.fillStyle = C.night;
-  ctx.fillRect(x, y, SIZE, SIZE * (game.world.h / game.world.w));
+  ctx.fillRect(x, y, SIDE, SIDE * (game.world.h / game.world.w));
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(m.canvas, x, y, game.world.w * s, game.world.h * s);
   ctx.imageSmoothingEnabled = true;
@@ -124,7 +129,7 @@ registerHud('minimap', (ctx, game, w) => {
   dot(me, 3, C.candle);
 
   ctx.strokeStyle = 'rgba(239,230,210,0.35)'; ctx.lineWidth = 1;
-  ctx.strokeRect(x - 0.5, y - 0.5, SIZE + 1, SIZE * (game.world.h / game.world.w) + 1);
+  ctx.strokeRect(x - 0.5, y - 0.5, SIDE + 1, SIDE * (game.world.h / game.world.w) + 1);
   ctx.fillStyle = C.ash; ctx.font = game.font(11); ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-  ctx.fillText('M  team map', x + SIZE, y + SIZE * (game.world.h / game.world.w) + 6);
+  ctx.fillText('M  team map', x + SIDE, y + SIDE * (game.world.h / game.world.w) + 6);
 });

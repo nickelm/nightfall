@@ -234,7 +234,7 @@ registerWorldPass('thorns', (world) => {
     for (let x = 1; x < world.w - 1; x++) {
       if (Math.hypot(x - cx, y - cy) < 6 || world.tile(x, y).name !== 'grass') continue;
       if (!(isTree(x - 1, y) || isTree(x + 1, y) || isTree(x, y - 1) || isTree(x, y + 1))) continue;
-      if (fbm(x / 8, y / 8, s + 61, 2) > 0.62 && hash2(x, y, s + 9) < 0.35) world.set(x, y, 'thorns');
+      if (fbm(x / 8, y / 8, s + 61, 2) > 0.62 && hash2(x, y, s + 9) < 0.14) world.set(x, y, 'thorns');
     }
   }
 }, { order: 160 });
