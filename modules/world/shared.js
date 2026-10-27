@@ -19,9 +19,9 @@ registerTile('wood-wall',   { color: '#7a5230', solid: true, opaque: true, struc
 registerTile('stone-block', { color: '#8a8590', solid: true, opaque: true, structure: true, harvest: { item: 'stone', becomes: 'gravel' }, hardness: 6, tool: 'pickaxe' });
 
 const ORES = [
-  { name: 'iron', color: '#b7c7d4', hardness: 8, chance: 0.20, minimum: 6 },
-  { name: 'gold', color: '#edc451', hardness: 12, chance: 0.06, minimum: 3 },
-  { name: 'diamond', color: '#5de2e7', hardness: 18, chance: 0.014, minimum: 3 },
+  { name: 'iron', color: '#b7c7d4', hardness: 8, share: 0.14, minimum: 6 },
+  { name: 'gold', color: '#edc451', hardness: 12, share: 0.046, minimum: 3 },
+  { name: 'diamond', color: '#5de2e7', hardness: 18, share: 0.014, minimum: 3 },
 ];
 for (const ore of ORES) {
   registerItem(ore.name, { color: ore.color });
@@ -57,28 +57,56 @@ registerWorldPass('terrain', (world, rng) => {
   }
 }, { order: 0 });
 
-// Mountain deposits plus small outcrops in the field; leave the spawn area clear.
+// Small veins inside rocky terrain. Never turn grass or forest into exposed ore.
 registerWorldPass('ores', (world, rng) => {
-  const candidates = [], counts = Object.fromEntries(ORES.map(ore => [ore.name, 0]));
-  const rareFirst = [...ORES].reverse();
+  const stone = new Uint8Array(world.w * world.h);
+  const eligible = new Uint8Array(world.w * world.h);
+  const candidates = [];
   for (let y = 1; y < world.h - 1; y++) {
     for (let x = 1; x < world.w - 1; x++) {
       if (Math.hypot(x - world.w / 2, y - world.h / 2) < 6) continue;
-      const name = world.tile(x, y).name;
-      if (name !== 'stone' && name !== 'grass') continue;
-      candidates.push({ x, y });
-      const roll = rng(), scale = name === 'stone' ? 1 : 0.07;
-      const ore = rareFirst.find(ore => roll < ore.chance * scale);
-      if (ore) { world.set(x, y, `${ore.name}-ore`); counts[ore.name]++; }
+      if (world.tile(x, y).name === 'stone') stone[y * world.w + x] = 1;
     }
   }
-  // Even a small island supplies enough of every material to craft its pickaxe.
-  for (const ore of ORES) {
-    const start = Math.floor(rng() * candidates.length);
-    for (let i = 0; i < candidates.length && counts[ore.name] < ore.minimum; i++) {
-      const { x, y } = candidates[(start + i) % candidates.length];
-      if (!['grass', 'stone'].includes(world.tile(x, y).name)) continue;
-      world.set(x, y, `${ore.name}-ore`); counts[ore.name]++;
+  const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let y = 1; y < world.h - 1; y++) {
+    for (let x = 1; x < world.w - 1; x++) {
+      const index = y * world.w + x;
+      if (!stone[index]) continue;
+      const neighbors = directions.reduce((n, [dx, dy]) => n + stone[(y + dy) * world.w + x + dx], 0);
+      if (neighbors < 2) continue; // keep isolated rocks and the edges of small outcrops intact
+      eligible[index] = 1;
+      candidates.push({ x, y });
+    }
+  }
+
+  // Place rare minerals first, growing adjacent tiles into veins of 2-5.
+  for (const ore of [...ORES].reverse()) {
+    const target = Math.min(candidates.length, Math.max(ore.minimum, Math.round(candidates.length * ore.share)));
+    let placed = 0, attempts = 0;
+    while (placed < target && attempts++ < candidates.length * 2) {
+      const seed = candidates[Math.floor(rng() * candidates.length)];
+      if (world.tile(seed.x, seed.y).name !== 'stone') continue;
+      const frontier = [seed], veinSize = Math.min(target - placed, 2 + Math.floor(rng() * 4));
+      let veinPlaced = 0;
+      while (frontier.length && veinPlaced < veinSize) {
+        const { x, y } = frontier.splice(Math.floor(rng() * frontier.length), 1)[0];
+        if (world.tile(x, y).name !== 'stone') continue;
+        world.set(x, y, `${ore.name}-ore`);
+        placed++; veinPlaced++;
+        const offset = Math.floor(rng() * directions.length);
+        for (let i = 0; i < directions.length; i++) {
+          const [dx, dy] = directions[(i + offset) % directions.length];
+          const nx = x + dx, ny = y + dy;
+          if (eligible[ny * world.w + nx] && world.tile(nx, ny).name === 'stone') frontier.push({ x: nx, y: ny });
+        }
+      }
+    }
+    // If random sampling misses the target, use remaining eligible stone only.
+    for (const { x, y } of candidates) {
+      if (placed >= target) break;
+      if (world.tile(x, y).name !== 'stone') continue;
+      world.set(x, y, `${ore.name}-ore`); placed++;
     }
   }
 }, { order: 100 });
