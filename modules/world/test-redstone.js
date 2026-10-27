@@ -60,14 +60,15 @@ try {
     terrain.fn(base, mulberry32(seed ^ hashString('terrain')));
     const a = World.generate(160, 160, seed), b = World.generate(160, 160, seed);
     assert.deepEqual(a.tiles, b.tiles);
-    const old = [], counts = { 'redstone-ore': 0, 'power-crystal-ore': 0 };
+    const old = [], counts = { 'redstone-ore': 0 };
     for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) {
       const name = a.tile(x, y).name;
       if (['iron-ore', 'gold-ore', 'diamond-ore'].includes(name)) old.push(`${x},${y}:${name}`);
       if (name in counts) { counts[name]++; assert.equal(base.tile(x, y).name, 'stone'); }
     }
     assert.equal(createHash('sha256').update(old.join('|')).digest('hex'), expected, 'existing ore positions remain stable');
-    assert.ok(counts['redstone-ore'] >= 8 && counts['power-crystal-ore'] >= 3, 'both new ores exist inside rock');
+    assert.ok(counts['redstone-ore'] >= 8, 'redstone exists inside rock');
+    assert.ok(!registries.items.has('power-crystal') && !registries.tileByName.has('power-crystal-ore'));
   }
   console.log('PASS new ores generate deterministically in rock without moving existing ore');
 
@@ -82,14 +83,14 @@ try {
   game.give(p, 'pickaxe', 1);
   await until(() => a.me().inventory.pickaxe === 1);
   await equip(a, 'pickaxe');
-  for (const item of ['redstone', 'power-crystal']) {
+  for (const item of ['redstone']) {
     game.setTile(81, 80, `${item}-ore`);
     a.action('mine', { x: 81, y: 80 });
     await until(() => a.me().inventory[item] === 1);
     await until(() => b.world.tile(81, 80).name === 'gravel');
   }
-  console.log('PASS both new minerals can be mined and synchronize with the other player');
-  for (const [item, n] of Object.entries({ redstone: 7, stone: 4, 'power-crystal': 1 })) game.give(p, item, n);
+  console.log('PASS redstone can be mined and synchronizes with the other player');
+  for (const [item, n] of Object.entries({ redstone: 7, stone: 4 })) game.give(p, item, n);
   a.action('craft', { recipe: 'redstone-wire' });
   await until(() => a.me().inventory['redstone-wire'] === 4);
   a.action('craft', { recipe: 'redstone-lamp' });
@@ -98,10 +99,11 @@ try {
   assert.equal(p.inventory.redstone, 3); assert.ok(!p.inventory.stone);
   console.log('PASS wire and lamps craft with the stated materials');
 
-  await equip(a, 'power-crystal');
+  game.give(p, 'redstone-lamp', 1);
+  await equip(a, 'redstone-lamp');
   a.action('use', { x: 82, y: 80 });
-  await until(() => [...game.entities.values()].some(e => e.type === 'power-source'));
-  const source = [...game.entities.values()].find(e => e.type === 'power-source');
+  await until(() => [...game.entities.values()].some(e => e.type === 'redstone-lamp'));
+  const source = [...game.entities.values()].find(e => e.type === 'redstone-lamp');
   assert.equal(source.on, true);
   await equip(a, 'redstone-wire');
   a.action('use', { x: 83, y: 80 });
@@ -113,8 +115,8 @@ try {
   a.move(84.5, 79.5); await until(() => p.x === 84.5);
   await equip(a, 'redstone-lamp');
   a.action('use', { x: 85, y: 80 });
-  await until(() => [...game.entities.values()].some(e => e.type === 'redstone-lamp' && e.powered));
-  const lamp1 = [...game.entities.values()].find(e => e.type === 'redstone-lamp');
+  await until(() => [...game.entities.values()].some(e => e.type === 'redstone-lamp' && e.id !== source.id));
+  const lamp1 = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && e.id !== source.id);
   assert.equal(lamp1.light, 6); assert.ok(!lamp1.repels, 'electric light does not repel monsters');
   assert.equal(lamp1.on, true, 'new lamp supplies its own power');
   await emptyHand(a); a.action('interact', { x: 85, y: 80 });
@@ -125,8 +127,8 @@ try {
   a.move(84.5, 82.5); await until(() => p.y === 82.5);
   await equip(a, 'redstone-lamp');
   a.action('use', { x: 85, y: 81 });
-  await until(() => [...game.entities.values()].filter(e => e.type === 'redstone-lamp').length === 2);
-  const lamp2 = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && e.id !== lamp1.id);
+  await until(() => [...game.entities.values()].filter(e => e.type === 'redstone-lamp').length === 3);
+  const lamp2 = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && e.id !== lamp1.id && e.id !== source.id);
   await emptyHand(a); a.action('interact', { x: 85, y: 81 });
   await until(() => !lamp2.on);
   assert.equal(lamp2.powered, false, 'diagonal wire and a neighboring lamp do not conduct');
@@ -140,16 +142,17 @@ try {
   a.action('interact', { x: 82, y: 80 });
   await until(() => !source.on && !lamp1.powered && !lamp2.powered && !game.world.tile(83, 80).powered);
   await until(() => b.snap.entities.find(e => e.id === lamp1.id)?.light === 0 && !b.world.tile(84, 80).powered);
-  console.log('PASS switching the crystal off turns off the full network on both clients');
+  console.log('PASS switching the lamp off turns off the full network on both clients');
 
   a.move(85.5, 82.5); await until(() => p.x === 85.5 && p.y === 82.5);
-  await equip(a, 'power-crystal');
+  game.give(p, 'redstone-lamp', 1);
+  await equip(a, 'redstone-lamp');
   a.action('use', { x: 84, y: 82 });
-  await until(() => [...game.entities.values()].filter(e => e.type === 'power-source').length === 2 && lamp1.powered && lamp2.powered);
+  await until(() => [...game.entities.values()].filter(e => e.type === 'redstone-lamp').length === 4 && lamp1.powered && lamp2.powered);
   await equip(a, 'pickaxe');
   a.action('interact', { x: 84, y: 82 });
-  await until(() => [...game.entities.values()].filter(e => e.type === 'power-source').length === 1 && !lamp1.powered && !lamp2.powered);
-  assert.equal(p.inventory['power-crystal'], 1, 'the picked-up crystal returns to inventory');
+  await until(() => [...game.entities.values()].filter(e => e.type === 'redstone-lamp').length === 3 && !lamp1.powered && !lamp2.powered);
+  assert.equal(p.inventory['redstone-lamp'], 1, 'the picked-up source returns to inventory');
   console.log('PASS a second source powers the network and can be recovered with a pickaxe');
 
   a.move(82.5, 79.5); await until(() => p.x === 82.5 && p.y === 79.5);
@@ -163,12 +166,12 @@ try {
   await until(() => game.world.tile(84, 80).name === 'sand' && (p.inventory['redstone-wire'] || 0) === before + 1);
   await until(() => !lamp1.powered && !lamp2.powered && !game.world.tile(84, 81).powered);
   await until(() => b.world.tile(84, 80).name === 'sand');
-  assert.ok(game.world.tile(83, 80).powered, 'the wire still connected to the crystal stays powered');
+  assert.ok(game.world.tile(83, 80).powered, 'the wire still connected to the source stays powered');
   console.log('PASS removing wire breaks the circuit and restores the original ground');
 
   a.move(84.5, 79.5); await until(() => p.x === 84.5);
   a.action('interact', { x: 85, y: 80 });
-  await until(() => !game.entities.has(lamp1.id) && a.me().inventory['redstone-lamp'] === 1);
+  await until(() => !game.entities.has(lamp1.id) && a.me().inventory['redstone-lamp'] === 2);
   console.log('PASS lamps can be picked up with a pickaxe');
 
   a.move(82.5, 79.5); await until(() => p.x === 82.5);
@@ -177,7 +180,7 @@ try {
   a.move(84.5, 79.5); await until(() => p.x === 84.5);
   await equip(a, 'redstone-lamp'); a.action('use', { x: 84, y: 80 });
   await until(() => lamp2.powered && game.world.tile(83, 80).powered && game.world.tile(84, 81).powered);
-  const lampSource = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && e.id !== lamp2.id);
+  const lampSource = [...game.entities.values()].find(e => e.type === 'redstone-lamp' && Math.floor(e.x) === 84 && Math.floor(e.y) === 80);
   assert.equal(lampSource.on, true); assert.equal(lampSource.light, 6);
   await until(() => b.snap.entities.find(e => e.id === lamp2.id)?.powered);
   await emptyHand(a); a.action('interact', { x: 84, y: 80 });
