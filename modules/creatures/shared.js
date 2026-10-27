@@ -6,11 +6,12 @@ registerEntityType('slime', { hp: 3, color: '#8fdc4a', speed: 1.6, damage: 1, ho
 
 // Blood slime: a red slime twice the size and with twice the life. Same slime AI;
 // `size` scales its body, collision, and bite reach (slimes are size 1).
+// splitsInto / splitCount: when killed, it bursts into that many of that type.
+registerEntityType('blood-slime', { hp: 6, size: 2, color: '#c0262f', speed: 1.6, damage: 1, hostile: true, windup: false, aggro: 8, threat: 2, splitsInto: 'slime', splitCount: 2 });
+
 // Loot (tables in loot.js): monster goo, and an item lying on the ground until someone walks over it.
 registerItem('monster-goo', { color: '#8fdc4a' });
 registerEntityType('drop', { item: null, count: 1 });
-
-registerEntityType('blood-slime', { hp: 6, size: 2, color: '#c0262f', speed: 1.6, damage: 1, hostile: true, windup: false, aggro: 8, threat: 2 });
 
 // Livestock are non-hostile and can be carried as items or raised in a pen.
 export const ANIMALS = {
@@ -32,3 +33,11 @@ registerKeyHint('RMB animal', 'catch');
 registerKeyHint('RMB pen', 'house / feed / collect');
 
 registerKeyHint('F3', 'director debug');
+
+// Dynamite: three lava make one stick; right click places it, and it explodes after
+// `fuse` seconds, dealing `damage` to everything within `radius` tiles (dynamite-server.js).
+export const DYNAMITE = { fuse: 3, damage: 20, radius: 2 };
+registerItem('dynamite', { color: '#b3241c', places: 'dynamite' });
+registerRecipe('dynamite', { inputs: { lava: 3 }, output: { dynamite: 1 } });
+registerEntityType('dynamite', { light: 1, lightColor: '#ffb347' });
+registerKeyHint('RMB dynamite', 'light the fuse');

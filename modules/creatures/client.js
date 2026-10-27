@@ -2,6 +2,7 @@
 // Quest logs and NPC dialogue boxes would go here too.
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import './farm-art.js';
+import './dynamite-art.js';
 
 // Blood slime: the slime drawing (from Art) scaled up by `size`, in the slime's own red.
 // Art can register its own 'blood-slime' drawer to replace this.

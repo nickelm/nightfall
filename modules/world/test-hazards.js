@@ -56,6 +56,26 @@ try {
 
   game.setTile(81, 83, 'gravel');
   assert.ok(!game.world.blocked(81.5, 83.5), 'harvested glass leaves walkable gravel');
+
+  // Stone on lava: fills it even under a glow, costs one stone, and removes the glow.
+  for (let y = 88; y <= 95; y++) for (let x = 88; x <= 95; x++) game.setTile(x, y, 'grass');
+  game.setTile(88, 88, 'lava'); game.setTile(89, 88, 'lava');
+  const glow = game.spawn('lava-glow', { x: 88.5, y: 88.5, _cell: [88, 88] });
+  const mason = game.spawn('player', { x: 89.5, y: 90.5, name: 'Mason', inventory: { stone: 3 }, hotbar: ['stone'], selected: 0 });
+  const use = (x, y) => { for (const h of registries.actions.get('use')) h.fn(game, mason, { x, y }); };
+  use(88, 88);
+  assert.equal(game.world.tile(88, 88).name, 'stone', 'stone on lava turns it into rock');
+  assert.equal(mason.inventory.stone, 2, 'filling lava costs exactly one stone');
+  const blocker = game.spawn('slime', { x: 89.5, y: 88.5, speed: 0, aggro: 0, hp: 99 });
+  use(89, 88);
+  assert.equal(game.world.tile(89, 88).name, 'lava', 'cannot fill lava under a creature');
+  game.despawn(blocker.id);
+  assert.ok(game.entities.has(glow.id), 'glow stays while its cell still has lava');
+  use(89, 88);
+  assert.equal(mason.inventory.stone, 1);
+  await until(() => !game.entities.has(glow.id), 1000);
+  game.despawn(mason.id);
+  console.log('PASS  stone fills lava, and the glow goes out once the pool is gone');
 } catch (err) { failed = true; console.error(err); }
 console.log(failed ? 'Hazard checks failed' : 'All hazard checks passed');
 process.exit(failed ? 1 : 0);
