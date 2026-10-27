@@ -1,7 +1,16 @@
 // TEAM CREATURES (client): horde warnings and the director debug view (F3).
 // Quest logs and NPC dialogue boxes would go here too.
-import { registerClientSystem, registerHud, onEvent } from '../../shared/registry.js';
+import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import './farm-art.js';
+
+// Blood slime: the slime drawing (from Art) scaled up by `size`, in the slime's own red.
+// Art can register its own 'blood-slime' drawer to replace this.
+registerDrawer('blood-slime', (ctx, e, x, y, T, game) => {
+  const slime = registries.drawers.get('slime');
+  if (slime) return slime(ctx, e, x, y, T * (e.size || 2), game);
+  ctx.fillStyle = e.color;
+  ctx.beginPath(); ctx.arc(x, y, T * 0.3 * (e.size || 2), 0, Math.PI * 2); ctx.fill();
+});
 
 let debug = false;
 let last = null;
