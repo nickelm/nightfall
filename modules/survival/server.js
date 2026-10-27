@@ -1,5 +1,6 @@
 // TEAM SURVIVAL (server): mining, placing, the hotbar, crafting, fire fuel.
 import { registries, onAction, registerSystem } from '../../shared/registry.js';
+import './cabin-server.js';
 
 const FUEL_PER_WOOD = 20; // seconds of burn time per wood
 const MINE_REACH = 2.2;   // tiles from the player to the mined tile's center
@@ -66,6 +67,7 @@ onAction('use', (game, player, { x, y }) => {
   const def = heldDef(player);
   if (!def || !(def.places || def.placesTile) || !Number.isInteger(x) || !Number.isInteger(y)) return;
   if (!game.has(player, def.name) || dist(player, x, y) > PLACE_REACH) return;
+  if (def.name === 'road' && !['grass', 'gravel', 'sand', 'snow'].includes(game.world.tile(x, y)?.name)) return;
   // no room: a solid tile, or anything (a player, a slime, a fire) overlapping the tile
   const overlaps = (e) => Math.abs(e.x - x - 0.5) < 0.85 && Math.abs(e.y - y - 0.5) < 0.85;
   if (game.world.isSolid(x, y) || [...game.entities.values()].some(overlaps)) return;

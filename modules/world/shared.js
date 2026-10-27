@@ -272,6 +272,11 @@ registerWorldPass('biomes', (world) => {
 }, { order: 170 });
 
 // TODO(world team): more passes, e.g.
+// A crafted road is walkable and can be picked up again with a pickaxe.
+registerTile('road', { color: '#929192', structure: true, speedMultiplier: 1.5,
+  harvest: { item: 'road', becomes: 'gravel' }, hardness: 2, tool: 'pickaxe' });
+registerItem('road', { color: '#a3a2a2', placesTile: 'road' });
+registerRecipe('road', { inputs: { stone: 2 }, output: { road: 1 } });
 // registerWorldPass('villages', (world, rng) => { ... }, { order: 200 });
 // registerWorldPass('dungeons', (world, rng) => { ... }, { order: 300 });
 // Keep the area around the island center walkable: players spawn there.

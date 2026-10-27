@@ -1,5 +1,5 @@
 // TEAM SURVIVAL: items, equipment, crafting, building, hunger, fire.
-import { registerItem, registerRecipe, registerEntityType, registerKeyHint } from '../../shared/registry.js';
+import { registerTile, registerItem, registerRecipe, registerEntityType, registerKeyHint } from '../../shared/registry.js';
 
 // placesTile / places: right click with the item in hand puts it into the world.
 registerItem('wood',   { color: '#8b5a2b', placesTile: 'wood-wall' });
@@ -26,6 +26,10 @@ for (const tier of [
   registerRecipe(`${tier.name}-sword`, { inputs: { wood: 1, [tier.name]: 2 }, output: { [`${tier.name}-sword`]: 1 } });
 }
 registerItem('door', { color: '#8b5a2b', placesTile: 'door-closed' });
+registerTile('cabin-floor', { color: '#a77c50', structure: true });
+registerItem('cabin', { color: '#a06d42', use: true });
+registerRecipe('cabin', { inputs: { wood: 20, stone: 5 }, output: { cabin: 1 } });
+registerEntityType('cabin', { light: 5, lightColor: '#ffca78', spawnProtection: 10 });
 
 registerItem('campfire',       { color: '#f80', places: 'campfire' });
 registerItem('jack-o-lantern', { color: '#ff8a1a', places: 'jack-o-lantern' });
@@ -54,6 +58,7 @@ registerKeyHint('1-9/wheel', 'hotbar');
 registerKeyHint('E', 'inventory & crafting');
 registerKeyHint('RMB on fire', 'feed it');
 registerKeyHint('RMB on door', 'open / close');
+registerKeyHint('RMB with cabin', 'build north of entrance');
 registerKeyHint('C', 'campfire (5 wood)');
 registerKeyHint('V', 'shield (3 wood 2 stone)');
 

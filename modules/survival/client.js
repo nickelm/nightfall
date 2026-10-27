@@ -7,6 +7,7 @@ import { TILE_PX } from '../../shared/config.js';
 import { safely } from '../../shared/safe.js';
 import { canCraft, orderRecipes } from './crafting-order.js';
 import './tool-art.js';
+import './cabin-art.js';
 
 const SLOTS = 9, SLOT = 46, GAP = 4;
 const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];

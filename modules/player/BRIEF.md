@@ -12,6 +12,14 @@ Craft a boat from five wood. Hold it and right-click water within reach to board
 WASD sails across water and land while walls still block movement. Reach open land
 to disembark and recover the boat automatically. Reconnecting at sea preserves it.
 
+Craft a portal from five diamonds and right-click to place it on clear ground.
+Right-click a placed portal to enter. While inside, press W/A/S/D to travel to
+the nearest portal in that screen direction within 80 tiles; Space exits onto a
+safe adjacent tile. Portal mode and location survive reconnecting.
+
+Craft a road tile from two stone and place it on clear ground. Walking or
+running on road is 1.5 times as fast; mine it with a pickaxe to recover it.
+
 - `shared.js`: the `player` entity type (`hp: 10`, `light: 2.5` for the torch, `speed: 5`) and the key hints.
 - `client.js`: WASD movement with wall sliding, relative to facing by default (W walks toward the cursor; the Esc settings switch to screen-relative), the character turning toward the mouse, and all mouse input. Left button or Space: mine the targeted tile (`mine` action), or swing when there is nothing to mine. Right button: `interact` on interactive things, else `use` for a held item with `places`, `placesTile`, or `use`, else guard. Shift always guards. An aim wedge shows your reach. Clients own their own position, so movement is instant.
 - `server.js`: the melee swing (a 0.9-tile arc in front, 0.35 s cooldown, knockback, damage from the held item's `damage`, default 1); a starter sword (`damage: 2`) for every new player; guard handling (with a shield, block hits from the front; without one, a 0.25 s parry window that cancels the hit, knocks the attacker back, and stuns it for 1.2 s); and respawn at the island center.

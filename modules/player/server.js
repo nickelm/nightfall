@@ -4,6 +4,7 @@
 import { registries, onAction, onEvent, registerSystem } from '../../shared/registry.js';
 import { ATTACKS, stepProjectiles } from './weapons.js';
 import './boat-server.js';
+import './portal-server.js';
 
 const PARRY_WINDOW = 0.25;   // seconds after pressing guard (no shield)
 const PARRY_COOLDOWN = 0.6;  // so mashing RMB does not parry everything
@@ -91,6 +92,7 @@ registerSystem('respawn', (game) => {
     p.hp = p.maxHp;
     p.stamina = p.maxStamina;
     p.running = p.winded = false;
+    delete p.portalId;
     const spot = game.world.findWalkable();
     game.teleport(p, spot.x, spot.y);
     game.sendTo(p.id, 'died', {});

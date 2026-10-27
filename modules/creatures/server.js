@@ -5,6 +5,7 @@ import { updateDirector, noteDamage, pickType, TUNING } from './director.js';
 import { lightReaches, isLit } from './light.js';
 import './farm-server.js';
 import './dynamite-server.js';
+import './giant-potion-server.js';
 import './monsters-server.js';
 import './wildlife-server.js';
 import { dropLoot, updateDrops } from './loot.js';
@@ -22,6 +23,7 @@ const fireAt = (list, x, y, pad = 0) => list.find((f) => Math.hypot(f.x - x, f.y
 
 const bodyRadius = (size) => 0.3 * (size || 1); // collision radius in tiles; slimes are size 1
 const typeSize = (type) => registries.entityTypes.get(type)?.defaults?.size || 1;
+const protectedFromSpawns = (entities, x, y) => entities.some(e => e.spawnProtection > 0 && Math.hypot(e.x - x, e.y - y) < e.spawnProtection);
 
 // A spawn footprint must avoid player-built tiles, including walkable ones such
 // as open doors, wires and placed thorns. Ordinary mined ground is still valid.
@@ -51,6 +53,7 @@ export function spawnMonster(game, player, { horde, angle, type, dark, raid } = 
   // Electric lamps prevent spawning throughout their illuminated radius without
   // repelling monsters that have already spawned. An unpowered lamp has light 0.
   const lamps = [...game.entities.values()].filter((e) => e.type === 'redstone-lamp' && e.light > 0);
+  const shelters = [...game.entities.values()].filter((e) => e.spawnProtection > 0);
   const lights = dark ? [...game.entities.values()].filter((e) => e.light > 0) : null;
   const r = bodyRadius(typeSize(type));
   for (let tries = 0; tries < 12; tries++) {
@@ -67,7 +70,8 @@ export function spawnMonster(game, player, { horde, angle, type, dark, raid } = 
       x = player.x + Math.cos(a) * d; y = player.y + Math.sin(a) * d;
     }
     if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r) || (!raid && fireAt(fl, x, y, 1)) ||
-        lamps.some((lamp) => Math.hypot(lamp.x - x, lamp.y - y) < lamp.light)) continue;
+        lamps.some((lamp) => Math.hypot(lamp.x - x, lamp.y - y) < lamp.light) ||
+        protectedFromSpawns(shelters, x, y)) continue;
     if (dark && isLit(game, x, y, lights)) continue;
     const props = { x, y };
     if (horde) props.aggro = 25;
@@ -184,12 +188,13 @@ onEvent('killed', (game, victim) => dropLoot(game, victim));
 onEvent('killed', (game, victim) => {
   if (!victim.splitsInto || !registries.entityTypes.get(victim.splitsInto)) return;
   const n = victim.splitCount ?? 2, r = bodyRadius(typeSize(victim.splitsInto));
+  const shelters = [...game.entities.values()].filter(e => e.spawnProtection > 0);
   let spawned = 0;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + Math.random();
     let x = victim.x + Math.cos(a) * 0.4, y = victim.y + Math.sin(a) * 0.4;
     if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r)) { x = victim.x; y = victim.y; }
-    if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r)) continue;
+    if (game.world.blocked(x, y, r) || overlapsBuiltBlock(game.world, x, y, r) || protectedFromSpawns(shelters, x, y)) continue;
     game.spawn(victim.splitsInto, { x, y, aggro: victim.aggro, _nextBite: game.time + 0.8 });
     spawned++;
   }

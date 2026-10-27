@@ -7,6 +7,7 @@
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 import { updateMovementControl } from './movement-control.js';
+import './portal-art.js';
 
 const REACH = 1.8;       // tiles: mining and swinging
 const PLACE_REACH = 2.5; // tiles: right-click use and place
@@ -44,6 +45,18 @@ registerClientSystem('movement', (game, dt) => {
   if (!me) return;
   const k = game.input;
   const free = !game.ui; // a panel (inventory, settings) takes the mouse
+  if (me.portalId != null) {
+    if (mining) { game.sendAction('mine', { stop: true }); mining = null; }
+    if (guarding) { guarding = false; game.sendAction('guard', { on: false }); }
+    if (running) { running = false; game.sendAction('run', { on: false }); }
+    if (free && k.pressed('Space')) game.sendAction('portalExit');
+    else if (free) {
+      for (const [key, direction] of [['KeyW', 'up'], ['KeyA', 'left'], ['KeyS', 'down'], ['KeyD', 'right']]) {
+        if (k.pressed(key)) { game.sendAction('portalMove', { direction }); break; }
+      }
+    }
+    return;
+  }
   if (free && k.pressed('KeyB')) game.sendAction('disembark');
 
   // --- face the mouse first, so facing-relative movement uses this frame's aim ---
@@ -105,7 +118,7 @@ registerClientSystem('movement', (game, dt) => {
   if (dx || dy) {
     const len = Math.hypot(dx, dy);
     dx /= len; dy /= len;
-    const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * dt;
+    const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * terrainSpeed(game.world, me) * dt;
     // move each axis separately so we slide along walls
     const blocked = (x, y) => me.sailing ? boatBlocked(game.world, x, y) : game.world.blocked(x, y);
     if (!blocked(me.x + dx * step, me.y)) me.x += dx * step;
@@ -144,6 +157,11 @@ registerClientSystem('movement', (game, dt) => {
   }
   if (free && !target && (k.clicked(0) || k.pressed('Space'))) game.sendAction('attack', {});
 });
+
+export function terrainSpeed(world, player) {
+  if (player.sailing) return 1;
+  return world.tile(player.x, player.y)?.speedMultiplier || 1;
+}
 
 // A boarded player can cross water but still collides with walls and obstacles.
 export function boatBlocked(world, x, y, r = 0.3) {

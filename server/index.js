@@ -290,6 +290,7 @@ function onMessage(ws, msg) {
       break;
     case 'move': {
       if (!player || !Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
+      if (player.portalId != null) return;
       player.x = msg.x;
       player.y = msg.y;
       if (msg.dir && Number.isFinite(msg.dir.x) && Number.isFinite(msg.dir.y)) player.dir = { x: msg.dir.x, y: msg.dir.y };
