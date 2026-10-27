@@ -3,6 +3,7 @@
 import { registries, registerSystem, onEvent } from '../../shared/registry.js';
 import { updateDirector, noteDamage } from './director.js';
 import './farm-server.js';
+import './dynamite-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
@@ -109,6 +110,21 @@ registerSystem('slime-ai', (game, dt) => {
 
 // Killed monsters drop loot (tables in loot.js); players walk over drops to pick them up.
 onEvent('killed', (game, victim) => dropLoot(game, victim));
+
+// Monsters with `splitsInto` burst into `splitCount` smaller ones when killed (not when
+// they melt at dawn). The young keep the parent's aggro, so horde members keep hunting,
+// and wait a moment before their first bite.
+onEvent('killed', (game, victim) => {
+  if (!victim.splitsInto || !registries.entityTypes.get(victim.splitsInto)) return;
+  const n = victim.splitCount ?? 2, r = bodyRadius(typeSize(victim.splitsInto));
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + Math.random();
+    let x = victim.x + Math.cos(a) * 0.4, y = victim.y + Math.sin(a) * 0.4;
+    if (game.world.blocked(x, y, r)) { x = victim.x; y = victim.y; }
+    game.spawn(victim.splitsInto, { x, y, aggro: victim.aggro, _nextBite: game.time + 0.8 });
+  }
+  game.broadcast('split', { id: victim.id, x: victim.x, y: victim.y, into: victim.splitsInto, count: n });
+});
 registerSystem('drops', updateDrops);
 
 // Slimes (blood slimes too) melt at dawn.
