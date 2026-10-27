@@ -512,3 +512,38 @@ registerDrawer('item:staff', (ctx, item, cx, cy, s) => {
   ctx.fillStyle = o;
   ctx.beginPath(); ctx.arc(ox, oy, r, 0, Math.PI * 2); ctx.fill();
 });
+
+// A cleric's mace: a wooden haft with a flanged steel head and a warm golden glow,
+// also shown in the player's hand.
+registerDrawer('item:mace', (ctx, item, cx, cy, s) => {
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1a0f0a';
+  ctx.lineWidth = Math.max(3, s * 0.12);
+  ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy + s * 0.32); ctx.lineTo(cx + s * 0.1, cy - s * 0.08); ctx.stroke();
+  ctx.strokeStyle = '#7a5230';
+  ctx.lineWidth = Math.max(1.5, s * 0.06);
+  ctx.stroke();
+  const hx = cx + s * 0.18, hy = cy - s * 0.16, r = s * 0.15, pulse = 0.85 + 0.15 * Math.sin(now() / 260);
+  const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, r * 2.3 * pulse);
+  g.addColorStop(0, 'rgba(255,230,140,0.55)');
+  g.addColorStop(1, 'rgba(255,200,80,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(hx, hy, r * 2.3 * pulse, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a0f0a'; // flanges
+  for (let k = 0; k < 6; k++) {
+    const a = (k * Math.PI) / 3 + 0.3;
+    ctx.beginPath();
+    ctx.moveTo(hx + Math.cos(a - 0.35) * r * 0.8, hy + Math.sin(a - 0.35) * r * 0.8);
+    ctx.lineTo(hx + Math.cos(a) * r * 1.55, hy + Math.sin(a) * r * 1.55);
+    ctx.lineTo(hx + Math.cos(a + 0.35) * r * 0.8, hy + Math.sin(a + 0.35) * r * 0.8);
+    ctx.fill();
+  }
+  const m = ctx.createRadialGradient(hx - r * 0.3, hy - r * 0.3, 0, hx, hy, r * 1.1);
+  m.addColorStop(0, '#fffbe6');
+  m.addColorStop(0.5, '#cfd3da');
+  m.addColorStop(1, '#7d838e');
+  ctx.fillStyle = m;
+  ctx.beginPath(); ctx.arc(hx, hy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = item.color; // a small gold boss
+  ctx.beginPath(); ctx.arc(hx, hy, r * 0.35, 0, Math.PI * 2); ctx.fill();
+});
