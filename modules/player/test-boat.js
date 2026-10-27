@@ -33,9 +33,12 @@ try {
   a.ws.close(); await until(()=>!game.entities.has(a.id));
   const c = await connect('Sailor'); p = game.entities.get(c.id);
   assert.ok(p.sailing && p.x===241.5 && p.y===240.5,'reconnecting at sea keeps boat and position');
-  c.move(243.5,240.5); await until(()=>p.x===243.5);
-  c.action('disembark'); await until(()=>!p.sailing && p.inventory.boat===1);
+  c.move(242.8,240.5); await until(()=>p.x===242.8); await sleep(150);
+  assert.ok(p.sailing && !p.inventory.boat, 'partial overlap with water keeps the boat');
+  c.move(243.5,240.5); await until(()=>p.x===243.5 && !p.sailing && p.inventory.boat===1);
+  c.action('disembark'); await sleep(150);
+  assert.equal(p.inventory.boat, 1, 'landing returns exactly one boat');
   assert.equal(game.world.tile(p.x,p.y).name,'grass');
-  console.log('PASS boat crafting, boarding, water movement, walls, at-sea reconnect and safe disembark');
+  console.log('PASS boat crafting, boarding, water movement, at-sea reconnect and automatic safe landing');
 } catch (err) { console.error(err); process.exitCode=1; }
 finally { sockets.forEach(ws=>ws.close()); setTimeout(()=>process.exit(process.exitCode||0),100); }

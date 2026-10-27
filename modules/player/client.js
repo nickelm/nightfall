@@ -113,6 +113,13 @@ registerClientSystem('movement', (game, dt) => {
     if (!k.mouse.active) me.dir = { x: dx, y: dy };
   }
 
+  if (me.sailing && !game.world.blocked(me.x, me.y)) {
+    // Stop predicting water movement as soon as the whole body reaches land.
+    me.sailing = false;
+    game.send({ t: 'move', x: me.x, y: me.y, dir: me.dir });
+    game.sendAction('disembark');
+  }
+
   sendTimer -= dt;
   if (sendTimer <= 0) {
     sendTimer = 0.05;
