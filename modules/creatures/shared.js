@@ -9,6 +9,15 @@ registerEntityType('slime', { hp: 3, color: '#8fdc4a', speed: 1.6, damage: 1, ho
 // splitsInto / splitCount: when killed, it bursts into that many of that type.
 registerEntityType('blood-slime', { hp: 6, size: 2, color: '#c0262f', speed: 1.6, damage: 1, hostile: true, windup: false, aggro: 8, threat: 2, splitsInto: 'slime', splitCount: 2 });
 
+// Night monsters with their own AI (monsters-server.js). All honor stunnedUntil and show
+// `windup` before every attack. Spiders leap (`leaping` while airborne) and can clear walls;
+// zombies are slow and tough, and bash doors open and wood walls down (`bashing`);
+// skeletons keep their distance and shoot bone arrows.
+registerEntityType('spider',   { hp: 2,  color: '#3a3340', speed: 2.4, damage: 1, hostile: true, windup: false, leaping: false, aggro: 10, threat: 1 });
+registerEntityType('zombie',   { hp: 10, color: '#6f8f5a', speed: 0.9, damage: 2, hostile: true, windup: false, bashing: false, aggro: 12, threat: 2 });
+registerEntityType('skeleton', { hp: 4,  color: '#e8e2d0', speed: 1.3, damage: 1, hostile: true, windup: false, aggro: 14, threat: 2 });
+registerEntityType('bone-arrow', { vx: 0, vy: 0, damage: 1, owner: null, ttl: 1, light: 0.5, lightColor: '#e8e2d0' });
+
 // Loot (tables in loot.js): monster goo, and an item lying on the ground until someone walks over it.
 registerItem('monster-goo', { color: '#8fdc4a' });
 registerEntityType('drop', { item: null, count: 1 });
