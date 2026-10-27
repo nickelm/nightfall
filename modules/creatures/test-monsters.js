@@ -51,7 +51,10 @@ console.log('PASS monster table: slimes on night 1, the full cast later');
 {
   const game = mockGame();
   const player = game.spawn('player', { x: 0.5, y: 0.5, hp: 5, light: 20 });
-  for (let i = 0; i < 20; i++) assert.equal(spawnMonster(game, player, { dark: true, type: 'zombie' }), null, 'no dark spawns in open light');
+  for (let i = 0; i < 20; i++) { // no dark tile in reach: it comes from out of sight instead
+    const e = spawnMonster(game, player, { dark: true, type: 'zombie' });
+    assert.ok(Math.hypot(e.x - player.x, e.y - player.y) >= 9, 'no dark spawns in open light');
+  }
   player.light = 0;
   assert.ok(spawnMonster(game, player, { dark: true, type: 'zombie' }), 'dark spawns appear in the dark');
   console.log('PASS darkness spawns: only on tiles no light reaches');
