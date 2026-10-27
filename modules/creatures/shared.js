@@ -1,5 +1,5 @@
 // TEAM CREATURES: monsters, animals, villagers/NPCs, quests.
-import { registerEntityType, registerItem, registerKeyHint, registerRecipe } from '../../shared/registry.js';
+import { registries, registerEntityType, registerItem, registerKeyHint, registerRecipe } from '../../shared/registry.js';
 
 registerEntityType('slime', { hp: 3, color: '#8fdc4a', speed: 1.6, damage: 1, hostile: true, windup: false, aggro: 8, threat: 1 });
 // hostile + hp: counted by the game director; threat: how much of its budget one costs.
@@ -80,3 +80,18 @@ registerKeyHint('RMB dynamite', 'light the fuse');
 export const GIANT = { seconds: 10, scale: 2, damage: 2, dropChance: 0.2, droppedBy: ['slime', 'blood-slime'] };
 registerItem('giant-potion', { color: '#d23cff', use: true });
 registerKeyHint('RMB giant potion', 'drink: giant for 10 s');
+
+// Double swords: for every sword the other teams registered before us (world, player and
+// survival load first), a `double-<sword>` three times as big and as strong but twice as
+// slow. Its recipe costs twice the normal sword's. Large monsters drop one now and then
+// (double-sword-server.js); the big blade is drawn in double-sword-art.js.
+export const DOUBLE_SWORD = { scale: 3, damage: 3, slower: 2, cost: 2, dropChance: 0.1, droppedBy: ['blood-slime', 'zombie'] };
+const swords = [...registries.items.values()].filter((i) => i.weapon?.kind === 'melee' && /(^|-)sword$/.test(i.name));
+for (const sword of swords) {
+  const name = `double-${sword.name}`, w = sword.weapon;
+  registerItem(name, { color: sword.color, gear: sword.gear, doubleSword: sword.name,
+    damage: (sword.damage ?? 1) * DOUBLE_SWORD.damage,
+    weapon: { ...w, reach: (w.reach ?? 0.9) * DOUBLE_SWORD.scale, cooldown: (w.cooldown ?? 0.35) * DOUBLE_SWORD.slower } });
+  const recipe = registries.recipes.get(sword.name);
+  if (recipe) registerRecipe(name, { inputs: Object.fromEntries(Object.entries(recipe.inputs).map(([k, n]) => [k, n * DOUBLE_SWORD.cost])), output: { [name]: 1 } });
+}
