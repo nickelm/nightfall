@@ -3,16 +3,18 @@
 //   left mouse / Space (hold)  mine the targeted tile, or swing when there is nothing to mine
 //   right mouse                interact with what you aim at (feed a fire), else use the
 //                              held item (place a block, a jack-o-lantern), else guard
-//   Shift (hold)               always guards
+//   Shift (hold)               runs while moving (costs stamina), guards when standing still
 import { registries, registerClientSystem, registerHud } from '../../shared/registry.js';
 import { TILE_PX } from '../../shared/config.js';
 
 const REACH = 1.8;       // tiles: mining and swinging
 const PLACE_REACH = 2.5; // tiles: right-click use and place
 const AIM_DEAD_ZONE = 0.4; // tiles around the player where the cursor does not turn us
+const RUN_MULT = 1.6;    // speed factor while running
 
 let sendTimer = 0;
 let guarding = false;
+let running = false;
 let mining = null;  // the tile we asked the server to mine, or null
 let useTimer = 0;   // right-click repeat while held
 
@@ -63,17 +65,29 @@ registerClientSystem('movement', (game, dt) => {
     }
   }
 
+  // --- read movement keys first: Shift runs while moving and guards when still ---
+  const fwd = (k.down('KeyW') || k.down('ArrowUp') ? 1 : 0) - (k.down('KeyS') || k.down('ArrowDown') ? 1 : 0);
+  const side = (k.down('KeyD') || k.down('ArrowRight') ? 1 : 0) - (k.down('KeyA') || k.down('ArrowLeft') ? 1 : 0);
+  const moving = !!(fwd || side);
+  const shift = free && (k.down('ShiftLeft') || k.down('ShiftRight'));
+
   // --- guard (block with a shield, parry without one) ---
-  const guard = rightGuard || (free && (k.down('ShiftLeft') || k.down('ShiftRight')));
+  const guard = rightGuard || (shift && !moving);
   if (guard !== guarding) {
     guarding = guard;
     me.guarding = guard;
     game.sendAction('guard', { on: guard });
   }
 
+  // --- run while stamina lasts (the server drains it and sets `winded` when it runs out) ---
+  const run = shift && moving && !guard && !me.winded && (me.stamina ?? 0) > 0;
+  if (run !== running) {
+    running = run;
+    me.running = run;
+    game.sendAction('run', { on: run });
+  }
+
   // --- move: relative to facing (W toward the cursor) or to the screen, see Esc settings ---
-  const fwd = (k.down('KeyW') || k.down('ArrowUp') ? 1 : 0) - (k.down('KeyS') || k.down('ArrowDown') ? 1 : 0);
-  const side = (k.down('KeyD') || k.down('ArrowRight') ? 1 : 0) - (k.down('KeyA') || k.down('ArrowLeft') ? 1 : 0);
   let dx = side, dy = -fwd;
   if (game.settings.movement !== 'screen' && k.mouse.active) {
     const d = me.dir; // right of facing is (-d.y, d.x) with y pointing down the screen
@@ -83,7 +97,7 @@ registerClientSystem('movement', (game, dt) => {
   if (dx || dy) {
     const len = Math.hypot(dx, dy);
     dx /= len; dy /= len;
-    const step = (me.speed || 5) * (guarding ? 0.5 : 1) * dt;
+    const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * dt;
     // move each axis separately so we slide along walls
     if (!game.world.blocked(me.x + dx * step, me.y)) me.x += dx * step;
     if (!game.world.blocked(me.x, me.y + dy * step)) me.y += dy * step;
@@ -129,4 +143,16 @@ registerHud('aim', (ctx, game) => {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+});
+
+// A thin stamina bar under your own character while it is not full; grey while winded.
+registerHud('stamina', (ctx, game) => {
+  const me = game.me;
+  if (!me || game.ui || !me.maxStamina || me.stamina >= me.maxStamina) return;
+  const C = game.theme.colors, p = game.worldToScreen(me.x, me.y);
+  const w = TILE_PX * 0.8, h = 4, x = p.x - w / 2, y = p.y + TILE_PX * 0.55;
+  ctx.fillStyle = C.panel;
+  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = me.winded ? C.ash : C.candle;
+  ctx.fillRect(x, y, w * Math.max(0, me.stamina / me.maxStamina), h);
 });
