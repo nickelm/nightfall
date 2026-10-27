@@ -3,6 +3,7 @@
 import { registries, registerSystem, onEvent } from '../../shared/registry.js';
 import { updateDirector, noteDamage } from './director.js';
 import './farm-server.js';
+import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
 
@@ -99,6 +100,10 @@ registerSystem('slime-ai', (game, dt) => {
     }
   }
 });
+
+// Killed monsters drop loot (tables in loot.js); players walk over drops to pick them up.
+onEvent('killed', (game, victim) => dropLoot(game, victim));
+registerSystem('drops', updateDrops);
 
 // Slimes (blood slimes too) melt at dawn.
 onEvent('dawn', (game) => {
