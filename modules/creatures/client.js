@@ -12,6 +12,28 @@ registerDrawer('blood-slime', (ctx, e, x, y, T, game) => {
   ctx.beginPath(); ctx.arc(x, y, T * 0.3 * (e.size || 2), 0, Math.PI * 2); ctx.fill();
 });
 
+// Loot on the ground: the item's own icon, bobbing above a small shadow.
+registerDrawer('drop', (ctx, e, x, y, T, game) => {
+  const bob = Math.sin(performance.now() / 300 + e.id) * T * 0.05;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x, y + T * 0.18, T * 0.16, T * 0.06, 0, 0, Math.PI * 2); ctx.fill();
+  const icon = registries.drawers.get(`item:${e.item}`);
+  if (icon) { icon(ctx, registries.items.get(e.item), x, y - bob, T * 0.6, game); return; }
+  ctx.fillStyle = registries.items.get(e.item)?.color || '#ccc';
+  ctx.fillRect(x - T * 0.15, y - bob - T * 0.15, T * 0.3, T * 0.3);
+});
+
+// Placeholder icon for monster goo (Art may replace it): a green blob with a shine.
+registerDrawer('item:monster-goo', (ctx, item, cx, cy, s) => {
+  ctx.fillStyle = item?.color || '#8fdc4a';
+  ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.06, s * 0.28, s * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + s * 0.12, cy - s * 0.14, s * 0.08, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath(); ctx.arc(cx - s * 0.1, cy - s * 0.02, s * 0.06, 0, Math.PI * 2); ctx.fill();
+});
+
+onEvent('net:pickedUp', (game, { item, count }) => game.notify(`+${count} ${item.replace(/-/g, ' ')}`, 1.5, game.theme.colors.candle));
+
 let debug = false;
 let last = null;
 

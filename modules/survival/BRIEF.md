@@ -8,6 +8,10 @@ You decide what players make and what they need. The central tension of the game
 
 ## What already exists
 
+Iron, gold and diamond axes require 2 wood and 3 of their matching mineral;
+their mining powers are 8, 12 and 20. Matching swords require 1 wood and 2
+minerals and deal 3, 4 and 5 damage respectively. The starter sword deals 2.
+
 - `shared.js`: items `wood` and `stone` (right click places them as `wood-wall` and `stone-block` through `placesTile`), `pumpkin`, `shield` (`equip: 'offhand'`), the tools `axe` and `pickaxe` (`tool`, `power: 4`), and the placeable `campfire` and `jack-o-lantern` (`places`). Recipes: campfire (5 wood), jack-o-lantern (1 pumpkin, 1 wood), axe (3 wood), pickaxe (4 wood), shield (3 wood, 2 stone). Entity types `campfire` (`fuel: 45`, `maxFuel: 90`, `light: 6`, `repels: true`, `interactive: true`) and `jack-o-lantern` (`light: 3.5`, `scares: 2`).
 - `server.js`: the `mine` action and `mining` system (time = tile `hardness`, divided by the tool's `power` when the tool matches); the `use` action (place the held item if the tile is free); `interact` (right click on a campfire feeds it wood, +20 s of fuel); `craft`; the hotbar (`select` and `hotbar` actions, and a system that fills free slots with new items); the `fire` system; and `lantern-courage`, which turns a jack-o-lantern's `repels` off while more than two monsters are near.
 - `client.js`: 1–9 and the wheel select a hotbar slot, E or Tab opens the inventory and crafting screen, C and V quick-craft; the hotbar, hearts, the target outline, and a ghost where a held block would go.

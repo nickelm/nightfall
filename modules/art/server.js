@@ -1,1 +1,2 @@
-// TEAM ART & SOUND (server): usually empty. Art is client-only.
+// TEAM ART & SOUND (server): mostly empty. Art is client-only, except the team map.
+import './team-map-server.js';

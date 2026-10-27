@@ -8,6 +8,7 @@
 import { registries, registerDrawer, registerHud, registerClientSystem, onEvent } from '../../shared/registry.js';
 import { hash2 } from '../../shared/rng.js';
 import { TILE_PX } from '../../shared/config.js';
+import './minimap.js';
 
 const now = () => performance.now();
 const flashing = (e) => (e._flashUntil || 0) > now();

@@ -3,6 +3,7 @@
 import { registries, registerSystem, onEvent } from '../../shared/registry.js';
 import { updateDirector, noteDamage } from './director.js';
 import './farm-server.js';
+import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
 const SLIMES = new Set(['slime', 'blood-slime']); // types that run the slime AI below
 
@@ -17,16 +18,22 @@ const bodyRadius = (size) => 0.3 * (size || 1); // collision radius in tiles; sl
 const typeSize = (type) => registries.entityTypes.get(type)?.defaults?.size || 1;
 
 // Where and when monsters appear is up to the game director (director.js).
-// This is how it spawns one slime near a player: out of sight and out of firelight.
+// This is how it spawns one slime near a player: out of sight and out of protected light.
 // Horde members spawn further out, all from the same direction, and hunt from afar.
-function spawnSlime(game, player, { horde, angle }) {
+export function spawnSlime(game, player, { horde, angle }) {
   const fl = fires(game);
+  // Electric lamps prevent spawning throughout their illuminated radius without
+  // repelling monsters that have already spawned. An unpowered lamp has light 0.
+  const lamps = [...game.entities.values()].filter((e) => e.type === 'redstone-lamp' && e.light > 0);
   for (let tries = 0; tries < 12; tries++) {
     const a = horde ? angle + (Math.random() - 0.5) : Math.random() * Math.PI * 2;
     const d = horde ? 13 + Math.random() * 3 : 9 + Math.random() * 5;
     const x = player.x + Math.cos(a) * d, y = player.y + Math.sin(a) * d;
     const type = Math.random() < bloodChance(game, horde) ? 'blood-slime' : 'slime';
-    if (!game.world.blocked(x, y, bodyRadius(typeSize(type))) && !fireAt(fl, x, y, 1)) return game.spawn(type, { x, y, ...(horde ? { aggro: 25 } : {}) });
+    if (!game.world.blocked(x, y, bodyRadius(typeSize(type))) && !fireAt(fl, x, y, 1) &&
+        !lamps.some((lamp) => Math.hypot(lamp.x - x, lamp.y - y) < lamp.light)) {
+      return game.spawn(type, { x, y, ...(horde ? { aggro: 25 } : {}) });
+    }
   }
   return null;
 }
@@ -99,6 +106,10 @@ registerSystem('slime-ai', (game, dt) => {
     }
   }
 });
+
+// Killed monsters drop loot (tables in loot.js); players walk over drops to pick them up.
+onEvent('killed', (game, victim) => dropLoot(game, victim));
+registerSystem('drops', updateDrops);
 
 // Slimes (blood slimes too) melt at dawn.
 onEvent('dawn', (game) => {
