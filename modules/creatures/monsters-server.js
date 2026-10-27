@@ -20,7 +20,7 @@ const BASH = { 'door-closed': { seconds: 2, becomes: 'door-open' }, 'wood-wall':
 const fires = (game) => [...game.entities.values()].filter((e) => e.repels);
 const fireAt = (list, x, y, pad = 0) => list.find((f) => Math.hypot(f.x - x, f.y - y) < f.light * 0.8 + pad);
 
-function nearestPlayer(game, e, range) {
+export function nearestPlayer(game, e, range) {
   let best = null, bestD = range;
   for (const p of game.players()) {
     const d = Math.hypot(p.x - e.x, p.y - e.y);
@@ -43,7 +43,7 @@ function goal(game, e) {
   return target && { target, x: target.x, y: target.y };
 }
 
-function stunned(game, e) {
+export function stunned(game, e) {
   if ((e.stunnedUntil || 0) <= game.time) return false;
   e.windup = false;
   if (e.bashing) e.bashing = false;
@@ -52,7 +52,7 @@ function stunned(game, e) {
 
 // Heading for this tick: flee firelight if caught inside (raiders do not care), else the goal,
 // else wander. Returns { dx, dy, speed, free } where free(x, y) says whether a step is allowed.
-function heading(game, e, g, fl) {
+export function heading(game, e, g, fl) {
   const inside = !e.raider && fireAt(fl, e.x, e.y);
   const free = (x, y) => !game.world.blocked(x, y, R) && (e.raider || inside || !fireAt(fl, x, y));
   if (inside) return { dx: e.x - inside.x, dy: e.y - inside.y, speed: e.speed * 1.3, free };
@@ -62,7 +62,7 @@ function heading(game, e, g, fl) {
 }
 
 // Step along (dx, dy), veering around obstacles. Returns false if every direction is blocked.
-function steer(e, { dx, dy, speed, free }, dt) {
+export function steer(e, { dx, dy, speed, free }, dt) {
   const base = Math.atan2(dy, dx), step = speed * dt;
   for (const turn of TURNS) {
     const nx = e.x + Math.cos(base + turn) * step, ny = e.y + Math.sin(base + turn) * step;
@@ -72,7 +72,7 @@ function steer(e, { dx, dy, speed, free }, dt) {
 }
 
 // Monsters of one type keep a little distance so packs spread out instead of stacking.
-function spread(game, e, dt) {
+export function spread(game, e, dt) {
   for (const o of game.entities.values()) {
     if (o === e || o.type !== e.type) continue;
     const ox = e.x - o.x, oy = e.y - o.y, dist = Math.hypot(ox, oy);

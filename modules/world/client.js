@@ -4,3 +4,4 @@ import './redstone-art.js';
 import './obsidian-art.js';
 import './biome-art.js';
 import './hazard-art.js';
+import './road-art.js';

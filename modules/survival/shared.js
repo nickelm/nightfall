@@ -30,6 +30,9 @@ registerTile('cabin-floor', { color: '#a77c50', structure: true });
 registerItem('cabin', { color: '#a06d42', use: true });
 registerRecipe('cabin', { inputs: { wood: 20, stone: 5 }, output: { cabin: 1 } });
 registerEntityType('cabin', { light: 5, lightColor: '#ffca78', spawnProtection: 10 });
+registerItem('house', { color: '#ad9b88', use: true });
+registerRecipe('house', { inputs: { wood: 40, stone: 15 }, output: { house: 1 } });
+registerEntityType('house', { light: 7, lightColor: '#ffca78', spawnProtection: 14 });
 
 registerItem('campfire',       { color: '#f80', places: 'campfire' });
 registerItem('jack-o-lantern', { color: '#ff8a1a', places: 'jack-o-lantern' });
@@ -59,6 +62,7 @@ registerKeyHint('E', 'inventory & crafting');
 registerKeyHint('RMB on fire', 'feed it');
 registerKeyHint('RMB on door', 'open / close');
 registerKeyHint('RMB with cabin', 'build north of entrance');
+registerKeyHint('RMB with house', 'build north of entrance');
 registerKeyHint('C', 'campfire (5 wood)');
 registerKeyHint('V', 'shield (3 wood 2 stone)');
 

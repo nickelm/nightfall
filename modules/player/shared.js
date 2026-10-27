@@ -15,6 +15,9 @@ registerItem('bow',   { color: '#8b5a2b', weapon: { kind: 'ranged', ammo: 'arrow
 registerItem('arrow', { color: '#d8c8a0', ammo: { damage: 1 } });
 registerItem('boat', { color: '#9d663b', use: true });
 registerRecipe('boat', { inputs: { wood: 5 }, output: { boat: 1 } });
+registerItem('portal', { color: '#72e5f1', places: 'portal' });
+registerRecipe('portal', { inputs: { diamond: 5 }, output: { portal: 1 } });
+registerEntityType('portal', { interactive: true, color: '#72e5f1' });
 registerRecipe('arrow', { inputs: { wood: 1 }, output: { arrow: 3 } });
 
 // A flying arrow. ttl is seconds left in the air; a faint light shows it at night.
@@ -27,6 +30,7 @@ registerKeyHint('Shift', 'run (guard when still)');
 registerKeyHint('Esc', 'settings');
 registerKeyHint('RMB water with boat', 'board');
 registerKeyHint('Boat', 'lands automatically');
+registerKeyHint('RMB portal', 'enter; WASD travel, Space exit');
 
 // TODO(player team): spells, e.g.
 // registerSpell('firebolt', { cost: 2, cooldown: 1 });
