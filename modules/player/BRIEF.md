@@ -10,7 +10,7 @@ You decide how it feels to be a person on this island: to move, to swing, to blo
 
 Craft a boat from five wood. Hold it and right-click water within reach to board;
 WASD sails across water and land while walls still block movement. Reach open land
-and press B to disembark and recover the boat. Reconnecting at sea preserves it.
+to disembark and recover the boat automatically. Reconnecting at sea preserves it.
 
 - `shared.js`: the `player` entity type (`hp: 10`, `light: 2.5` for the torch, `speed: 5`) and the key hints.
 - `client.js`: WASD movement with wall sliding, relative to facing by default (W walks toward the cursor; the Esc settings switch to screen-relative), the character turning toward the mouse, and all mouse input. Left button or Space: mine the targeted tile (`mine` action), or swing when there is nothing to mine. Right button: `interact` on interactive things, else `use` for a held item with `places`, `placesTile`, or `use`, else guard. Shift always guards. An aim wedge shows your reach. Clients own their own position, so movement is instant.

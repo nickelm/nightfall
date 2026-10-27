@@ -26,7 +26,7 @@ registerKeyHint('RMB', 'place / guard');
 registerKeyHint('Shift', 'run (guard when still)');
 registerKeyHint('Esc', 'settings');
 registerKeyHint('RMB water with boat', 'board');
-registerKeyHint('B on land', 'leave boat');
+registerKeyHint('Boat', 'lands automatically');
 
 // TODO(player team): spells, e.g.
 // registerSpell('firebolt', { cost: 2, cooldown: 1 });

@@ -106,10 +106,20 @@ try {
   a.move(81.5, 82.5); await until(() => player.x === 81.5);
   a.action('interact', { x: 81, y: 82 }); await sleep(100);
   assert.equal(game.world.tile(81, 82).name, 'door-open');
+  a.move(80.69, 82.5); await until(() => player.x === 80.69);
+  const drop = game.spawn('drop', { x: 81.5, y: 82.5, item: 'wood', count: 1 });
+  a.action('interact', { x: 81, y: 82 });
+  await until(() => b.world.tile(81, 82).name === 'door-closed');
+  game.despawn(drop.id);
+  a.action('interact', { x: 81, y: 82 });
+  await until(() => b.world.tile(81, 82).name === 'door-open');
+  a.move(80.71, 82.5); await until(() => player.x === 80.71);
+  a.action('interact', { x: 81, y: 82 }); await sleep(100);
+  assert.equal(game.world.tile(81, 82).name, 'door-open', 'cannot close on a body overlapping the doorway');
   a.move(80.5, 82.5); await until(() => player.x === 80.5);
   a.action('interact', { x: 81, y: 82 });
   await until(() => b.world.tile(81, 82).name === 'door-closed');
-  console.log('PASS  wooden door places, opens, closes, syncs, and refuses to close on a player');
+  console.log('PASS  doors sync, close beside players and drops, and stay open when a body overlaps');
 
   // A walled corridor forces the monster to face the door rather than walk around it.
   for (let x = 77; x <= 85; x++) { game.setTile(x, 81, 'wood-wall'); game.setTile(x, 83, 'wood-wall'); }
