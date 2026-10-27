@@ -30,6 +30,7 @@ function giantDrawer(inner) {
     ctx.fillStyle = left < 3 ? game.theme.colors.blood : '#e59bff';
     ctx.fillText(label, x, ty);
   };
+  Object.assign(fn, inner); // keep the other wrappers' marks, so nobody wraps twice
   fn._giant = true;
   return fn;
 }

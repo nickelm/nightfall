@@ -6,6 +6,7 @@ import { lightReaches, isLit } from './light.js';
 import './farm-server.js';
 import './dynamite-server.js';
 import './giant-potion-server.js';
+import './double-sword-server.js';
 import './monsters-server.js';
 import './wildlife-server.js';
 import { dropLoot, updateDrops } from './loot.js';
