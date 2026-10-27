@@ -11,7 +11,21 @@ You decide what players find when they explore. Your world passes run on the ser
 - `shared.js` registers the terrain tiles (`water`, `sand`, `grass`, `tree`, `stone`, `gravel`), a `pumpkin` tile, ores, doors, and the blocks players place with right click (`wood-wall`, `stone-block`). The `terrain` pass (order 0) builds an island from elevation and moisture noise, `ores` (order 100) grows iron, gold, and diamond veins inside rock, and `pumpkins` (order 150) scatters pumpkin patches on open grass. Ore never replaces grass or forest.
 - Trees, stone, and pumpkins are `solid` (block movement); trees and stone are also `opaque` (block line of sight). All are mined by holding the left button. A tile's `hardness` is the seconds that takes by hand (tree 1.8, stone 5, pumpkin 0.6), and its `tool` (`'axe'` or `'pickaxe'`) names the tool that mines it four times faster.
 - Players spawn at the walkable tile nearest the island center.
-- `server.js` and `client.js` are empty stubs.
+- `server.js` loads the redstone circuit system; `client.js` loads the world-resource and circuit drawings.
+
+## Redstone lights
+
+Redstone and power-crystal ores appear in veins inside rock. Existing iron, gold,
+and diamond veins keep their seed-based positions when the new ores are added.
+Mine redstone to craft wire (one redstone makes four) and lamps (two redstone and
+two stone). A power crystal can be placed directly as a reusable power source.
+
+Right-click to place a source, wire, or lamp on grass, sand, or gravel. Power
+travels through wire in the four cardinal directions; lamps beside a powered wire
+or an active source turn on. A lamp provides visibility but does not repel monsters.
+Right-click a source to toggle it. Hold a pickaxe and right-click a source or lamp
+to pick it up; mine wire to retrieve it and restore the ground underneath. Sources
+do not run out of charge.
 
 ## Goals, in priority order
 
