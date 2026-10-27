@@ -11,7 +11,8 @@ You decide what players find when they explore. Your world passes run on the ser
 - `shared.js` registers the terrain tiles (`water`, `sand`, `grass`, `tree`, `stone`, `gravel`), a `pumpkin` tile, ores, doors, and the blocks players place with right click (`wood-wall`, `stone-block`). The `terrain` pass (order 0) builds an island from elevation and moisture noise, `ores` (order 100) grows iron, gold, and diamond veins inside rock, and `pumpkins` (order 150) scatters pumpkin patches on open grass. Ore never replaces grass or forest.
 - Trees, stone, and pumpkins are `solid` (block movement); trees and stone are also `opaque` (block line of sight). All are mined by holding the left button. A tile's `hardness` is the seconds that takes by hand (tree 1.8, stone 5, pumpkin 0.6), and its `tool` (`'axe'` or `'pickaxe'`) names the tool that mines it four times faster.
 - Players spawn at the walkable tile nearest the island center.
-- `server.js` loads the redstone circuit system; `client.js` loads the world-resource and circuit drawings.
+- Hazards and glass: `glass` (solid but not opaque, so sight and light pass), `thorns` (walkable spike pit), and `lava` (walkable, glows at night). A tile flag `hurts: { damage, every }` makes `hazards-server.js` call `game.damage(e, damage, null)` every `every` seconds on anything with `hp` standing on it (thorns 1 per 0.8 s, lava 2 per 0.5 s). The `lava` pass (order 120, after the ores) turns plain stone in mountain cores into lava pools, and the `thorns` pass (order 160) puts brambles along forest edges. Invisible `lava-glow` entities light the pools. Sand is minable (gives `sand`); recipes: `glass` from 2 sand, `thorns` from 2 wood and 1 stone. Both are placed with right click (`placesTile`).
+- `server.js` loads the redstone circuit and hazard systems; `client.js` loads the world-resource, circuit, and hazard drawings.
 
 ## Redstone lights
 
@@ -28,8 +29,9 @@ preserved for compatibility with saved worlds; crystals are not needed for lamps
 
 ## Lava and obsidian
 
-Solid lava veins generate in rocky terrain, without replacing existing ores. Lava
-does not flow or damage players. Mine a vein with a diamond or obsidian pickaxe;
+Solid lava veins and hazardous lava pools generate in rocky terrain, without
+replacing existing ores. Pools damage players and monsters; veins are solid. Mine
+either kind with a diamond or obsidian pickaxe;
 one lava and one diamond craft one obsidian. An obsidian pickaxe or axe requires
 three obsidian and two wood and has mining power 40. An obsidian sword requires
 two obsidian and one wood and deals 10 damage. The pickaxe can also mine lava.

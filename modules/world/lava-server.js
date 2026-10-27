@@ -1,11 +1,12 @@
 import { onAction, registerSystem, registries } from '../../shared/registry.js';
 
 const lavaTools = new Set(['diamond-pickaxe', 'obsidian-pickaxe']);
+const lavaTiles = new Set(['lava', 'lava-ore']);
 
 // The ordinary mining handler still receives the action. Our system consumes
 // its lava job and handles it here so it cannot bypass the tool requirement.
 onAction('mine', (game, p, { x, y, stop }) => {
-  if (stop || !Number.isInteger(x) || !Number.isInteger(y) || game.world.tile(x, y)?.name !== 'lava-ore') {
+  if (stop || !Number.isInteger(x) || !Number.isInteger(y) || !lavaTiles.has(game.world.tile(x, y)?.name)) {
     delete p._lavaMine;
     return;
   }
@@ -24,7 +25,7 @@ registerSystem('lava-mining', (game, dt) => {
       game.sendTo(p.id, 'circuitMessage', { text: 'Lava requires a diamond or obsidian pickaxe.' });
       continue;
     }
-    if (p.hp <= 0 || game.world.tile(job.x, job.y)?.name !== 'lava-ore' ||
+    if (p.hp <= 0 || !lavaTiles.has(game.world.tile(job.x, job.y)?.name) ||
         Math.hypot(job.x + 0.5 - p.x, job.y + 0.5 - p.y) > 2.2) {
       delete p._lavaMine; p.mining = null; continue;
     }

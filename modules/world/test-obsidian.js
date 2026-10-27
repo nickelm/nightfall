@@ -67,8 +67,13 @@ try {
   await until(() => p.inventory.wood === 1); assert.equal(game.world.tile(81, 80).name, 'grass');
   await equip('obsidian-pickaxe'); game.setTile(81, 80, 'lava-ore'); action('mine', { x: 81, y: 80 });
   await until(() => p.inventory.lava === 1); assert.equal(game.world.tile(81, 80).name, 'gravel');
+  game.setTile(81, 80, 'lava');
+  await equip('gold-pickaxe'); action('mine', { x: 81, y: 80 }); await sleep(300);
+  assert.equal(game.world.tile(81, 80).name, 'lava');
+  action('mine', { stop: true }); await equip('diamond-pickaxe'); action('mine', { x: 81, y: 80 });
+  await until(() => p.inventory.lava === 2); assert.equal(game.world.tile(81, 80).name, 'gravel');
   assert.equal(registries.items.get('obsidian-axe').power, 40);
   assert.equal(registries.items.get('obsidian-pickaxe').power, 40);
-  console.log('PASS obsidian sword deals 10 damage, axe chops trees, and pickaxe mines lava');
+  console.log('PASS obsidian sword and axe work, and lava pools also require a diamond-tier pickaxe');
 } catch (err) { console.error(err); process.exitCode = 1; }
 finally { ws.close(); setTimeout(() => process.exit(process.exitCode || 0), 100); }

@@ -3,13 +3,13 @@ import { registerDrawer, registerHud } from '../../shared/registry.js';
 registerHud('lava-hint', (ctx, game, w) => {
   if (!game.me || game.ui) return;
   const target = game.targetTile(2.2);
-  if (game.world.tile(target.x, target.y)?.name !== 'lava-ore') return;
+  if (!['lava', 'lava-ore'].includes(game.world.tile(target.x, target.y)?.name)) return;
   const width = Math.min(w - 24, 500), x = (w - width) / 2;
   ctx.save(); ctx.fillStyle = game.theme.colors.panel; ctx.fillRect(x, 145, width, 28);
   ctx.strokeStyle = game.theme.colors.pumpkin; ctx.strokeRect(x, 145, width, 28);
   ctx.fillStyle = game.theme.colors.candle; ctx.font = game.font(14);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('Lava vein: mine with a diamond or obsidian pickaxe', w / 2, 159, width - 14);
+  ctx.fillText('Lava: mine with a diamond or obsidian pickaxe', w / 2, 159, width - 14);
   ctx.restore();
 });
 
