@@ -51,9 +51,9 @@ registerRecipe('dynamite', { inputs: { lava: 3 }, output: { dynamite: 1 } });
 registerEntityType('dynamite', { light: 1, lightColor: '#ffb347' });
 registerKeyHint('RMB dynamite', 'light the fuse');
 
-// Giant potion: large monsters (size 2 or more) may drop it. Right click to drink: for
+// Giant potion: slimes and blood slimes drop it one time in five. Right click to drink: for
 // `seconds` the player is drawn twice as big and deals twice the damage (giant-potion-server.js).
 // The player carries `giantUntil` (game time) while it lasts; clients draw the countdown.
-export const GIANT = { seconds: 10, scale: 2, damage: 2, dropChance: 0.5 };
+export const GIANT = { seconds: 10, scale: 2, damage: 2, dropChance: 0.2, droppedBy: ['slime', 'blood-slime'] };
 registerItem('giant-potion', { color: '#d23cff', use: true });
 registerKeyHint('RMB giant potion', 'drink: giant for 10 s');
