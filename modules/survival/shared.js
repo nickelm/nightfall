@@ -13,6 +13,18 @@ registerItem('pickaxe', { color: '#9aa0aa', tool: 'pickaxe', power: 4 });
 registerItem('iron-pickaxe', { color: '#b7c7d4', tool: 'pickaxe', power: 8, gear: 1 });
 registerItem('gold-pickaxe', { color: '#edc451', tool: 'pickaxe', power: 12, gear: 2 });
 registerItem('diamond-pickaxe', { color: '#5de2e7', tool: 'pickaxe', power: 20, gear: 3 });
+// Match the existing pickaxe tiers; swords use the player's standard melee attack.
+for (const tier of [
+  { name: 'iron', color: '#b7c7d4', power: 8, damage: 3, gear: 1 },
+  { name: 'gold', color: '#edc451', power: 12, damage: 4, gear: 2 },
+  { name: 'diamond', color: '#5de2e7', power: 20, damage: 5, gear: 3 },
+]) {
+  registerItem(`${tier.name}-axe`, { color: tier.color, tool: 'axe', power: tier.power, gear: tier.gear });
+  registerItem(`${tier.name}-sword`, { color: tier.color, damage: tier.damage, gear: tier.gear,
+    weapon: { kind: 'melee', reach: 0.9, cooldown: 0.35 } });
+  registerRecipe(`${tier.name}-axe`, { inputs: { wood: 2, [tier.name]: 3 }, output: { [`${tier.name}-axe`]: 1 } });
+  registerRecipe(`${tier.name}-sword`, { inputs: { wood: 1, [tier.name]: 2 }, output: { [`${tier.name}-sword`]: 1 } });
+}
 registerItem('door', { color: '#8b5a2b', placesTile: 'door-closed' });
 
 registerItem('campfire',       { color: '#f80', places: 'campfire' });
