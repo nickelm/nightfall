@@ -1,8 +1,24 @@
 // Hazard tiles (thorns, lava) and the glow over lava pools. State lives on entities and `game`.
-import { registerSystem } from '../../shared/registry.js';
+import { onAction, registerSystem } from '../../shared/registry.js';
 
 const GLOW_CELL = 4;        // one lava-glow light per 4x4 cell that contains lava
 const GLOW_RECHECK = 5;     // seconds between checks for glows whose lava is gone
+const PLACE_REACH = 2.6;    // same reach as Survival's placement
+
+// Right click with stone on lava fills it with natural rock. World loads before
+// Survival, so this runs first; the tile is then solid and Survival's placement
+// skips it. Unlike Survival's check, invisible lava-glow lights do not block it.
+onAction('use', (game, player, { x, y }) => {
+  if (player.hotbar?.[player.selected] !== 'stone' || !game.has(player, 'stone')) return;
+  if (!Number.isInteger(x) || !Number.isInteger(y) || game.world.tile(x, y)?.name !== 'lava') return;
+  if (Math.hypot(x + 0.5 - player.x, y + 0.5 - player.y) > PLACE_REACH) return;
+  const overlaps = (e) => e.type !== 'lava-glow' && Math.abs(e.x - x - 0.5) < 0.85 && Math.abs(e.y - y - 0.5) < 0.85;
+  if ([...game.entities.values()].some(overlaps)) return;
+  game.setTile(x, y, 'stone');
+  game.give(player, 'stone', -1);
+  game.broadcast('placed', { x, y, item: 'stone', by: player.id });
+  game._lavaGlowCheckAt = 0; // drop the glow right away if its lava is gone
+});
 
 // Anything with hp standing on a tile with `hurts` takes damage on entry and then
 // every `hurts.every` seconds. No source, so guarding cannot block it.
