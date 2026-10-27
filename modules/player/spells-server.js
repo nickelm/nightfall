@@ -26,7 +26,7 @@ function blocked(game, p, spell, target, point = null) {
   if (!target && spell.free === 'direction') return null;
   const at = target || point;
   if (Math.hypot(at.x - p.x, at.y - p.y) > spell.range) return 'Out of range';
-  if (!clearLine(game.world, p.x, p.y, at.x, at.y)) return 'No line of sight';
+  if (spell.sight !== false && !clearLine(game.world, p.x, p.y, at.x, at.y)) return 'No line of sight';
   return null;
 }
 

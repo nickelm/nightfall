@@ -36,13 +36,14 @@ registerKeyHint('Boat', 'lands automatically');
 registerKeyHint('RMB portal', 'enter; WASD travel, Space exit');
 
 // Magic. Craft a staff to get a mana bar; with the staff in hand, the mouse button and
-// what is under the cursor pick the spell (sight.js). Every spell needs line of sight.
+// what is under the cursor pick the spell (sight.js). Spells need line of sight to their
+// target unless they say `sight: false` (heals and firestorms reach around walls).
 // `free`: cast at empty ground too, as a shot in that direction or at that point.
 registerItem('staff', { color: '#6a3fa0', gear: 2 });
 registerRecipe('staff', { inputs: { wood: 3, 'monster-goo': 3 }, output: { staff: 1 } });
 registerSpell('fireball',  { on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
-registerSpell('firestorm', { on: 'foe',    free: 'point',     cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
-registerSpell('heal',      { on: ['friend', 'self'],          cost: 2,  cooldown: 0.6, range: 11, amount: 2 }); // cheap: hold RMB to keep healing
+registerSpell('firestorm', { on: 'foe',    free: 'point',     sight: false, cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
+registerSpell('heal',      { on: ['friend', 'self'],          sight: false, cost: 2,  cooldown: 0.6, range: 11, amount: 2 }); // cheap: hold RMB to keep healing
 registerSpell('shell',     { on: 'friend',                    cost: 2,  cooldown: 0,   range: 11, drain: 4 }); // drain: mana per second held
 // A purple nova bursting out of the caster: huge damage to every foe in reach, but it
 // also hurts any friend caught in it (a shell protects them); the caster is unharmed.

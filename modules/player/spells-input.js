@@ -33,10 +33,11 @@ function hoverTarget(game) {
   return best;
 }
 
-/** Can a spell reach world point (x, y): in range and in line of sight? */
-function reachable(game, x, y, spell = 'fireball') {
-  const me = game.me, range = registries.spells.get(spell)?.range ?? 11;
-  return Math.hypot(x - me.x, y - me.y) <= range && clearLine(game.world, me.x, me.y, x, y);
+/** Can a spell reach world point (x, y): in range, and in line of sight if it needs it? */
+function reachable(game, x, y, name = 'fireball') {
+  const me = game.me, spell = registries.spells.get(name);
+  return Math.hypot(x - me.x, y - me.y) <= (spell?.range ?? 11) &&
+    (spell?.sight === false || clearLine(game.world, me.x, me.y, x, y));
 }
 
 const cursor = (game) => game.screenToWorld(game.input.mouse.x, game.input.mouse.y);
@@ -123,7 +124,9 @@ registerHud('spell-target', (ctx, game) => {
     return;
   }
   const { e, rel } = hover;
-  const ok = reachable(game, e._rx, e._ry, SPELL_FOR.left[rel]);
+  const left = SPELL_FOR.left[rel], right = SPELL_FOR.right[rel];
+  const canLeft = reachable(game, e._rx, e._ry, left), canRight = reachable(game, e._rx, e._ry, right);
+  const ok = canLeft || canRight;
   const p = game.worldToScreen(e._rx, e._ry), r = TILE_PX * 0.5 * (e.size || 1);
   const color = !ok ? C.ash : rel === 'foe' ? C.pumpkin : rel === 'self' ? C.moon : C.candle;
   const spin = performance.now() / 600;
@@ -140,7 +143,7 @@ registerHud('spell-target', (ctx, game) => {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillStyle = color;
-  const label = ok ? `LMB ${SPELL_FOR.left[rel]}  ·  RMB ${SPELL_FOR.right[rel]}` : 'out of sight or range';
+  const label = !ok ? 'out of sight or range' : [canLeft && `LMB ${left}`, canRight && `RMB ${right}`].filter(Boolean).join('  ·  ');
   ctx.fillText(label, p.x, p.y + r + 4);
 });
 
