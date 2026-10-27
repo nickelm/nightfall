@@ -1,5 +1,5 @@
 // TEAM PLAYER: movement, combat, magic, health, death.
-import { registerEntityType, registerItem, registerKeyHint } from '../../shared/registry.js';
+import { registerEntityType, registerItem, registerRecipe, registerKeyHint } from '../../shared/registry.js';
 
 // `light` is the torch every player carries: enough to see by, too weak to keep monsters away.
 // hotbar: 9 item names (or null) pointing into the inventory; the held item is hotbar[selected].
@@ -13,6 +13,7 @@ registerEntityType('player', { hp: 10, maxHp: 10, light: 2.5, speed: 5, stamina:
 registerItem('sword', { color: '#cfd3da', damage: 2, weapon: { kind: 'melee', reach: 0.9, cooldown: 0.35 } });
 registerItem('bow',   { color: '#8b5a2b', weapon: { kind: 'ranged', ammo: 'arrow', projectile: 'arrow', speed: 14, range: 12, cooldown: 0.5 } });
 registerItem('arrow', { color: '#d8c8a0', ammo: { damage: 1 } });
+registerRecipe('arrow', { inputs: { wood: 1 }, output: { arrow: 3 } });
 
 // A flying arrow. ttl is seconds left in the air; a faint light shows it at night.
 registerEntityType('arrow', { vx: 0, vy: 0, damage: 1, owner: null, ttl: 1, light: 0.6, lightColor: '#ffd9a0' });
