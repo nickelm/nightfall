@@ -18,6 +18,29 @@ registerEntityType('zombie',   { hp: 10, color: '#6f8f5a', speed: 0.9, damage: 2
 registerEntityType('skeleton', { hp: 4,  color: '#e8e2d0', speed: 1.3, damage: 1, hostile: true, windup: false, aggro: 14, threat: 2 });
 registerEntityType('bone-arrow', { vx: 0, vy: 0, damage: 1, owner: null, ttl: 1, light: 0.5, lightColor: '#e8e2d0' });
 
+// Wildlife: predators that roam by day, picked by biome (wildlife-server.js). They are
+// `predator`, not `hostile`: the night director does not count them and light does not burn
+// them, but campfires still keep them out. Players walk at 5 and run at 8.
+//   bite      seconds of windup before a bite (the parry cue); cooldown between bites
+//   leash     tiles from home before a predator gives up the chase
+//   fleeAt    share of hp at which it runs away (0: fights to the death)
+//   knock     bears knock you back this many tiles
+//   charge    lions stalk slowly, then charge at this speed for a moment
+export const PREDATORS = {
+  wolf:         { hp: 4,  speed: 5.5, damage: 1, aggro: 8,  leash: 20, fleeAt: 0.3,  bite: 0.35, cooldown: 1.0, color: '#7d7468' },
+  'snow-wolf':  { hp: 5,  speed: 5.5, damage: 1, aggro: 9,  leash: 20, fleeAt: 0.3,  bite: 0.35, cooldown: 1.0, color: '#dfe4ec' },
+  bear:         { hp: 12, speed: 4,   damage: 3, aggro: 5,  leash: 12, fleeAt: 0,    bite: 0.7,  cooldown: 1.8, knock: 1, color: '#5a3d26' },
+  'polar-bear': { hp: 16, speed: 4.5, damage: 3, aggro: 7,  leash: 14, fleeAt: 0,    bite: 0.7,  cooldown: 1.8, knock: 1.2, color: '#f2efe6' },
+  lion:         { hp: 8,  speed: 2.2, damage: 2, aggro: 11, leash: 22, fleeAt: 0.25, bite: 0.3,  cooldown: 1.4, charge: 9, color: '#c8964a' },
+};
+for (const [name, p] of Object.entries(PREDATORS)) {
+  registerEntityType(name, { hp: p.hp, maxHp: p.hp, speed: p.speed, damage: p.damage, aggro: p.aggro, color: p.color,
+    predator: true, windup: false, stalking: false, charging: false, fleeing: false });
+}
+// Meat and fur drop from predators. `food` is for Survival to make meat edible and cookable.
+registerItem('meat', { color: '#b5483b', food: 20 });
+registerItem('fur', { color: '#8a6f55' });
+
 // Loot (tables in loot.js): monster goo, and an item lying on the ground until someone walks over it.
 registerItem('monster-goo', { color: '#8fdc4a' });
 registerEntityType('drop', { item: null, count: 1 });
