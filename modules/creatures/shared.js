@@ -4,6 +4,10 @@ import { registerEntityType, registerItem, registerKeyHint, registerRecipe } fro
 registerEntityType('slime', { hp: 3, color: '#8fdc4a', speed: 1.6, damage: 1, hostile: true, windup: false, aggro: 8, threat: 1 });
 // hostile + hp: counted by the game director; threat: how much of its budget one costs.
 
+// Blood slime: a red slime twice the size and with twice the life. Same slime AI;
+// `size` scales its body, collision, and bite reach (slimes are size 1).
+registerEntityType('blood-slime', { hp: 6, size: 2, color: '#c0262f', speed: 1.6, damage: 1, hostile: true, windup: false, aggro: 8, threat: 2 });
+
 // Livestock are non-hostile and can be carried as items or raised in a pen.
 export const ANIMALS = {
   pig:     { color: '#eaa6a9', product: 'truffle', productColor: '#755341', speed: 0.55 },
