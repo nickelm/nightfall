@@ -3,6 +3,7 @@
 import { registries, registerClientSystem, registerHud, registerDrawer, onEvent } from '../../shared/registry.js';
 import './farm-art.js';
 import './dynamite-art.js';
+import './giant-potion-art.js';
 import './monsters-art.js';
 import './first-person.js';
 
