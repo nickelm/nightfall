@@ -21,7 +21,9 @@ for (const seed of [1, 42, 1234, 4242, 699005729]) {
   assert.deepEqual(world.tiles, again.tiles);
   let lava = 0;
   for (let y = 0; y < world.h; y++) for (let x = 0; x < world.w; x++) {
-    if (world.tile(x, y).name === 'lava-ore') { lava++; assert.equal(before.tile(x, y).name, 'stone'); }
+    if (world.tile(x, y).name === 'lava-ore') {
+      lava++; assert.ok(['stone', 'granite-rock', 'sandstone-rock', 'froststone-rock'].includes(before.tile(x, y).name));
+    }
     else assert.equal(world.tile(x, y).name, before.tile(x, y).name, 'other tiles remain unchanged');
   }
   assert.ok(lava >= 8, `lava available on seed ${seed}`);

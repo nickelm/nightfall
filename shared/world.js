@@ -3,6 +3,7 @@
 import { registries } from './registry.js';
 import { mulberry32, hashString } from './rng.js';
 import { safely } from './safe.js';
+import { generateExpandedWorld } from '../modules/world/regions.js';
 
 export class World {
   constructor(w, h, seed) {
@@ -13,8 +14,10 @@ export class World {
     this.edits = new Map(); // "x,y" -> tile id, changes since generation
   }
 
-  static generate(w, h, seed) {
+  static generate(w, h, seed, options = {}) {
+    if (w === 480 && h === 480 && !options.region) return generateExpandedWorld(World, seed);
     const world = new World(w, h, seed);
+    world.regionKind = options.region || null;
     const passes = [...registries.worldPasses].sort((a, b) => a.order - b.order);
     for (const pass of passes) {
       const rng = mulberry32(seed ^ hashString(pass.name));

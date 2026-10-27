@@ -3,6 +3,7 @@
 // the guard logic below cancels hits by listening to it.
 import { registries, onAction, onEvent, registerSystem } from '../../shared/registry.js';
 import { ATTACKS, stepProjectiles } from './weapons.js';
+import './boat-server.js';
 
 const PARRY_WINDOW = 0.25;   // seconds after pressing guard (no shield)
 const PARRY_COOLDOWN = 0.6;  // so mashing RMB does not parry everything
