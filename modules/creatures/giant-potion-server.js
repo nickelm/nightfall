@@ -1,10 +1,10 @@
-// Giant potion: dropped by large monsters, drunk with right click. While a player's
+// Giant potion: dropped by slimes (GIANT.dropChance of the time), drunk with right click. While a player's
 // `giantUntil` lies ahead, every hit they land (melee or their arrows) does GIANT.damage times as much.
 import { onAction, onEvent, registerSystem } from '../../shared/registry.js';
 import { GIANT } from './shared.js';
 
 onEvent('killed', (game, victim) => {
-  if (!victim.hostile || (victim.size || 1) < 2 || Math.random() >= GIANT.dropChance) return;
+  if (!GIANT.droppedBy.includes(victim.type) || Math.random() >= GIANT.dropChance) return;
   game.spawn('drop', { x: victim.x, y: victim.y, item: 'giant-potion', count: 1 });
 });
 
