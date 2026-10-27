@@ -36,14 +36,19 @@ registerKeyHint('Boat', 'lands automatically');
 registerKeyHint('RMB portal', 'enter; WASD travel, Space exit');
 
 // Magic. Craft a staff to get a mana bar; with the staff in hand, the mouse button and
-// what is under the cursor pick the spell (sight.js). Every spell needs line of sight.
+// what is under the cursor pick the spell (sight.js). Spells need line of sight to their
+// target unless they say `sight: false` (heals and firestorms reach around walls).
 // `free`: cast at empty ground too, as a shot in that direction or at that point.
 registerItem('staff', { color: '#6a3fa0', gear: 2 });
 registerRecipe('staff', { inputs: { wood: 3, 'monster-goo': 3 }, output: { staff: 1 } });
 registerSpell('fireball',  { on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
-registerSpell('firestorm', { on: 'foe',    free: 'point',     cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
-registerSpell('heal',      { on: 'friend',                    cost: 6,  cooldown: 1.2, range: 11, amount: 4 });
+registerSpell('firestorm', { on: 'foe',    free: 'point',     sight: false, cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
+registerSpell('heal',      { on: ['friend', 'self'],          sight: false, cost: 2,  cooldown: 0.6, range: 11, amount: 2 }); // cheap: hold RMB to keep healing
 registerSpell('shell',     { on: 'friend',                    cost: 2,  cooldown: 0,   range: 11, drain: 4 }); // drain: mana per second held
+// A purple nova bursting out of the caster: huge damage to every foe in reach, but it
+// also hurts any friend caught in it (a shell protects them); the caster is unharmed.
+// Cheap and quick to repeat: the danger is to the people standing next to you.
+registerSpell('nova',      { on: 'self',                      cost: 3,  cooldown: 1,   range: 1,  radius: 3.5, damage: 8, friendDamage: 2 });
 
 // A homing fireball; a short-lived burst of light where something explodes (blast);
 // meteors raining on an area (firestorm). All carry `light`, so they light the night.
@@ -51,6 +56,6 @@ registerEntityType('fireball', { vx: 0, vy: 0, target: null, owner: null, damage
 registerEntityType('blast', { light: 0, lightColor: '#ffe070', age: 0, ttl: 0.6, peak: 3.5, hot: '#ffe070', cool: '#ff3a10' });
 registerEntityType('firestorm', { radius: 2.5, ttl: 1.8, owner: null, light: 3, lightColor: '#ff3a10' });
 
-registerKeyHint('Staff LMB', 'fireball / shell friend (hold)');
-registerKeyHint('Staff RMB', 'firestorm / heal friend');
+registerKeyHint('Staff LMB', 'fireball / shell friend / heal self (hold)');
+registerKeyHint('Staff RMB', 'firestorm / heal friend (hold) / nova on self');
 registerKeyHint('Sword', 'swings taunt nearby foes');

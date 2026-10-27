@@ -22,11 +22,11 @@ function blocked(game, p, spell, target, point = null) {
   if (!(p.hp > 0) || !holdsStaff(p)) return 'Hold the staff to cast';
   if (p.shelled) return 'You cannot cast inside a shell';
   if (!spell) return 'No target';
-  if (target ? relation(p, target) !== spell.on : !(point && spell.free)) return 'No target';
+  if (target ? ![].concat(spell.on).includes(relation(p, target)) : !(point && spell.free)) return 'No target';
   if (!target && spell.free === 'direction') return null;
   const at = target || point;
   if (Math.hypot(at.x - p.x, at.y - p.y) > spell.range) return 'Out of range';
-  if (!clearLine(game.world, p.x, p.y, at.x, at.y)) return 'No line of sight';
+  if (spell.sight !== false && !clearLine(game.world, p.x, p.y, at.x, at.y)) return 'No line of sight';
   return null;
 }
 
@@ -50,6 +50,19 @@ const CASTS = {
   },
   firestorm(game, p, spell, target, at) {
     game.spawn('firestorm', { x: at.x, y: at.y, radius: spell.radius, owner: p.id, ttl: spell.duration + 0.3, _next: 0.3, _age: 0 });
+  },
+  // Every foe in reach and in sight takes a heavy hit and is flung away; friends
+  // inside take some too (the caster does not), so mind who stands next to you.
+  nova(game, p, spell) {
+    for (const e of game.near(p.x, p.y, spell.radius, isFoe)) {
+      if (!clearLine(game.world, p.x, p.y, e.x, e.y)) continue;
+      if (game.damage(e, spell.damage, p)) game.knockback(e, p.x, p.y, 1.5);
+    }
+    for (const f of game.near(p.x, p.y, spell.radius, (e) => e.type === 'player' && e.hp > 0 && e !== p)) {
+      if (clearLine(game.world, p.x, p.y, f.x, f.y)) game.damage(f, spell.friendDamage, p);
+    }
+    game.spawn('blast', { x: p.x, y: p.y, peak: 6, ttl: 0.8, hot: '#e8c0ff', cool: '#7a3fb0' });
+    game.broadcast('nova', { id: p.id, x: p.x, y: p.y, radius: spell.radius });
   },
   heal(game, p, spell, target) {
     target.hp = Math.min(target.maxHp, target.hp + spell.amount);

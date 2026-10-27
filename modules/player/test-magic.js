@@ -4,6 +4,7 @@ import { WebSocket } from 'ws';
 process.env.PORT = '8138'; process.env.SEED = '4242'; process.env.START_TIME = '10';
 const { game } = await import('../../server/index.js');
 const { nearestPlayer } = await import('../creatures/monsters-server.js');
+const { clearLine } = await import('./sight.js');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(fn, ms = 8000) { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return; await sleep(25); } assert.ok(fn(), 'condition reached'); }
 const sockets = [];
@@ -56,8 +57,17 @@ try {
 
   // heal a hurt friend
   pb.hp = 4;
+  game.setTile(233, 239, 'stone-block'); // heals reach around walls
+  assert.ok(!clearLine(game.world, pa.x, pa.y, pb.x, pb.y));
   a.action('cast', { spell: 'heal', target: pb.id });
-  await until(() => pb.hp === 8);
+  const heal = (await import('../../shared/registry.js')).registries.spells.get('heal');
+  await until(() => pb.hp === 4 + heal.amount);
+  game.setTile(233, 239, 'grass');
+  assert.ok(heal.cost <= 2, 'healing stays cheap');
+  await sleep(heal.cooldown * 1000 + 100);
+  a.action('cast', { spell: 'heal', target: pb.id }); // held RMB repeats the cast each cooldown
+  await until(() => pb.hp === 4 + 2 * heal.amount);
+  pb.hp = 8;
 
   // focus shell: the friend takes no damage and cannot attack until released
   pa.mana = 20;
@@ -83,10 +93,27 @@ try {
   pa.mana = 20;
   const pack = [frozen(240, 240), frozen(241, 240), frozen(240, 241), frozen(241, 241)];
   const booms = a.events.length;
+  game.setTile(236, 240, 'stone-block'); // and so do firestorms
+  assert.ok(!clearLine(game.world, pa.x, pa.y, 240.5, 240.5));
   a.action('cast', { spell: 'firestorm', x: 240.5, y: 240.5 });
   await until(() => a.events.slice(booms).filter(m => m.name === 'boom' && m.data.size === 'big').length >= 10, 4000);
   assert.ok(byMage.some(h => pack.includes(h.target)), 'firestorm hurts the pack');
   await until(() => ![...game.entities.values()].some(e => e.type === 'firestorm' || e.type === 'blast'), 2000); // storm and blasts burn out
-  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal, focus shell, sword taunt, firestorm at a point');
+  game.setTile(236, 240, 'grass');
+  // heal yourself (LMB on self)
+  pa.hp = 5; await sleep(heal.cooldown * 1000 + 100);
+  a.action('cast', { spell: 'heal', target: pa.id });
+  await until(() => pa.hp === 5 + heal.amount);
+
+  // nova (RMB on self): a heavy hit on every foe around, a lighter one on friends, none on the caster
+  const nova = (await import('../../shared/registry.js')).registries.spells.get('nova');
+  pa.mana = 20; pa.hp = 10; pb.hp = pb.maxHp;
+  const hpB = pb.hp, before = byMage.length;
+  a.action('cast', { spell: 'nova', target: pa.id });
+  await until(() => byMage.slice(before).some(h => h.target === zt && h.amount === nova.damage));
+  assert.ok(pa.hp >= 10, 'the nova spares its caster'); // a kill may level them up, which adds health
+  assert.equal(pb.hp, hpB - nova.friendDamage, 'and friends caught in it');
+  assert.ok(a.events.some(m => m.name === 'nova'));
+  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal (friend and self), focus shell, sword taunt, firestorm at a point, nova');
 } catch (err) { console.error(err); process.exitCode = 1; }
 finally { sockets.forEach(ws => ws.close()); setTimeout(() => process.exit(process.exitCode || 0), 100); }
