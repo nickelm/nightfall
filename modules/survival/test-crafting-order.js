@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { loadModules } from '../../shared/loader.js';
+import { registries } from '../../shared/registry.js';
+import { canCraft, orderRecipes } from './crafting-order.js';
+
+await loadModules('shared', path => import(`../${path}`));
+const recipes = [...registries.recipes.values()];
+const inventory = { wood: 20, iron: 3, gold: 3, diamond: 3, obsidian: 3 };
+const sorted = orderRecipes(recipes, inventory, registries.items);
+const ready = sorted.filter(recipe => canCraft(recipe, inventory));
+assert.deepEqual(sorted.slice(0, ready.length), ready, 'affordable recipes precede every unavailable recipe');
+const names = sorted.map(recipe => recipe.name);
+assert.equal(names[0], 'obsidian-sword');
+assert.ok(names.indexOf('obsidian-pickaxe') < names.indexOf('diamond-sword'));
+assert.ok(names.indexOf('diamond-sword') < names.indexOf('gold-sword'));
+assert.ok(names.indexOf('gold-sword') < names.indexOf('iron-sword'));
+assert.ok(names.indexOf('iron-sword') < names.indexOf('campfire'));
+assert.ok(names.indexOf('campfire') < names.indexOf('obsidian'), 'affordable ordinary items come before unavailable strong items');
+assert.equal(orderRecipes(recipes, { wood: 1 }, registries.items)[0].name, 'arrow', 'ordering updates when materials change');
+assert.equal(orderRecipes(recipes, { wood: 2 }, registries.items)[0].name, 'arrow', 'equal priority retains original order');
+assert.notDeepEqual(names, recipes.map(recipe => recipe.name), 'the sorted output is a new list');
+console.log('PASS crafting order prioritizes affordability, tier, strength, stable ties, and inventory changes');
