@@ -23,6 +23,11 @@ entrance. They have grey curved tile roofs, timber-framed lattice walls and a
 wooden maru floor. They share house lighting, spawn protection and roof cutaway.
 Run `BUILDING=hanok node modules/survival/test-house.js` for the hanok checks.
 
+Holding a cabin, house or hanok shows a translucent tile footprint: walls, floor,
+door and the entrance approach. Green means buildable; red means blocked, with
+overlapping tiles emphasized. Preview and server construction share the same
+footprint, ground, range and entity checks in `building-plan.js`.
+
 Iron, gold and diamond axes require 2 wood and 3 of their matching mineral;
 their mining powers are 8, 12 and 20. Matching swords require 1 wood and 2
 minerals and deal 3, 4 and 5 damage respectively. The starter sword deals 2.

@@ -10,6 +10,7 @@ import './tool-art.js';
 import './cabin-art.js';
 import './hanok-art.js';
 import { xpForLevel } from '../player/progression.js';
+import { drawBuildingPreview } from './building-preview.js';
 
 const SLOTS = 9, SLOT = 46, GAP = 4;
 const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
@@ -174,6 +175,7 @@ registerHud('target', (ctx, game) => {
   const me = game.me;
   if (!me || game.ui) return;
   const def = registries.items.get(me.hotbar?.[game.selectedSlot]);
+  if (def && drawBuildingPreview(ctx, game, def.name, game.targetTile(2.5), TILE_PX)) return;
   if (def && (def.places || def.placesTile)) {
     const t = game.targetTile(2.5), p = game.worldToScreen(t.x, t.y);
     const busy = [...game.entities.values()].some((e) => Math.abs(e.x - t.x - 0.5) < 0.85 && Math.abs(e.y - t.y - 0.5) < 0.85);
