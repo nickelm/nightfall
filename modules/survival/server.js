@@ -16,9 +16,13 @@ onAction('interact', (game, player, { x, y }) => {
   const tile = game.world.tile(x, y);
   if (tile?.name === 'door-closed' || tile?.name === 'door-open') {
     const closing = tile.name === 'door-open';
-    // Never close a solid door on a player or creature standing in the opening.
-    if (closing && [...game.entities.values()].some(e =>
-      Math.abs(e.x - x - 0.5) < 0.85 && Math.abs(e.y - y - 0.5) < 0.85)) return;
+    // Match movement collision: living bodies, not drops or invisible effects,
+    // block the door only when their collision box overlaps the doorway.
+    if (closing && [...game.entities.values()].some(e => {
+      if (!(e.hp > 0 || e.animal)) return false;
+      const r = 0.3 * (e.size || 1);
+      return e.x + r >= x && e.x - r < x + 1 && e.y + r >= y && e.y - r < y + 1;
+    })) return;
     game.setTile(x, y, closing ? 'door-closed' : 'door-open');
     return;
   }

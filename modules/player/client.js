@@ -60,7 +60,12 @@ registerClientSystem('movement', (game, dt) => {
     const it = interactTarget(game);
     const def = heldItem(game);
     if (it) {
-      if (k.clicked(2)) game.sendAction('interact', it);
+      if (k.clicked(2)) {
+        // Send the latest position first so the server sees when we have
+        // stepped clear of a doorway, even between movement updates.
+        game.send({ t: 'move', x: me.x, y: me.y, dir: me.dir });
+        game.sendAction('interact', it);
+      }
     } else if (usable(def)) {
       if (k.clicked(2) || useTimer <= 0) { useTimer = 0.25; game.sendAction('use', game.targetTile(PLACE_REACH)); }
     } else {
