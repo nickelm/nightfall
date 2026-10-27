@@ -118,7 +118,7 @@ registerClientSystem('movement', (game, dt) => {
   if (dx || dy) {
     const len = Math.hypot(dx, dy);
     dx /= len; dy /= len;
-    const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * dt;
+    const step = (me.speed || 5) * (guarding ? 0.5 : running ? RUN_MULT : 1) * terrainSpeed(game.world, me) * dt;
     // move each axis separately so we slide along walls
     const blocked = (x, y) => me.sailing ? boatBlocked(game.world, x, y) : game.world.blocked(x, y);
     if (!blocked(me.x + dx * step, me.y)) me.x += dx * step;
@@ -157,6 +157,11 @@ registerClientSystem('movement', (game, dt) => {
   }
   if (free && !target && (k.clicked(0) || k.pressed('Space'))) game.sendAction('attack', {});
 });
+
+export function terrainSpeed(world, player) {
+  if (player.sailing) return 1;
+  return world.tile(player.x, player.y)?.speedMultiplier || 1;
+}
 
 // A boarded player can cross water but still collides with walls and obstacles.
 export function boatBlocked(world, x, y, r = 0.3) {
