@@ -13,6 +13,14 @@ const fctx = fogCanvas.getContext('2d');
 const FOG_SEEN = 170;   // alpha over tiles seen before but not visible now
 const FOG_UNSEEN = 255; // alpha over tiles never seen
 
+function buildingRoof(e, me) {
+  if (e.type !== 'cabin' && e.type !== 'house') return null;
+  const width = e.type === 'house' ? 7 : 5, height = e.type === 'house' ? 6 : 4;
+  const left = e.x - width / 2, top = e.y - (height - 1) / 2;
+  const inside = me && me.x >= left + 1 && me.x < left + width - 1 && me.y >= top + 1 && me.y < top + height - 1;
+  return { left, top, width, height, inside };
+}
+
 function resetText(ctx) {
   ctx.font = font(14);
   ctx.textAlign = 'left';
@@ -54,18 +62,18 @@ export function render(game, ctx, w, h) {
   }
 
   // Roofs lift for the local player inside, revealing the real walkable interior.
-  for (const cabin of game.entities.values()) {
-    if (cabin.type !== 'cabin') continue;
-    if (me && me.x >= cabin.x - 1.5 && me.x < cabin.x + 1.5 &&
-        me.y >= cabin.y - 0.5 && me.y < cabin.y + 1.5) continue;
-    const x = (cabin.x - 2.5 - cam.x) * T + w / 2;
-    const y = (cabin.y - 1.5 - cam.y) * T + h / 2;
-    if (x > w || y > h || x + 5 * T < 0 || y + 3 * T < 0) continue;
-    ctx.fillStyle = '#56352e'; ctx.fillRect(x - T * .08, y - T * .08, T * 5.16, T * 3.16);
-    ctx.fillStyle = '#855544'; ctx.fillRect(x, y, T * 5, T * 3);
-    ctx.strokeStyle = '#624033'; ctx.lineWidth = Math.max(1, T * .04);
-    for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x, y + T * i / 2); ctx.lineTo(x + T * 5, y + T * i / 2); ctx.stroke(); }
-    ctx.fillStyle = '#b07d5c'; ctx.fillRect(x, y + T * 1.46, T * 5, T * .08);
+  for (const building of game.entities.values()) {
+    const roof = buildingRoof(building, me);
+    if (!roof || roof.inside) continue;
+    const x = (roof.left - cam.x) * T + w / 2;
+    const y = (roof.top - cam.y) * T + h / 2;
+    const rw = roof.width * T, rh = (roof.height - 1) * T;
+    if (x > w || y > h || x + rw < 0 || y + rh < 0) continue;
+    ctx.fillStyle = building.type === 'house' ? '#41343d' : '#56352e'; ctx.fillRect(x - T * .08, y - T * .08, rw + T * .16, rh + T * .16);
+    ctx.fillStyle = building.type === 'house' ? '#70606a' : '#855544'; ctx.fillRect(x, y, rw, rh);
+    ctx.strokeStyle = building.type === 'house' ? '#50434d' : '#624033'; ctx.lineWidth = Math.max(1, T * .04);
+    for (let i = 1; i < (roof.height - 1) * 2; i++) { ctx.beginPath(); ctx.moveTo(x, y + T * i / 2); ctx.lineTo(x + rw, y + T * i / 2); ctx.stroke(); }
+    ctx.fillStyle = building.type === 'house' ? '#a8989c' : '#b07d5c'; ctx.fillRect(x, y + rh / 2 - T * .04, rw, T * .08);
   }
 
   // --- entities, back to front (only what we can see) ---
@@ -129,19 +137,19 @@ export function render(game, ctx, w, h) {
     const img = fctx.createImageData(cols, rows);
     const { seen, visible } = game.vision;
     const W = game.world.w, fog = THEME.fog;
-    const visibleRoofs = [...game.entities.values()].filter(cabin => {
-      if (cabin.type !== 'cabin') return false;
-      if (me && me.x >= cabin.x - 1.5 && me.x < cabin.x + 1.5 && me.y >= cabin.y - 0.5 && me.y < cabin.y + 1.5) return false;
-      const x = Math.floor(cabin.x), y = Math.floor(cabin.y) + 2;
-      return game.world.inBounds(x, y) && visible[y * W + x];
-    });
+    const visibleRoofs = [...game.entities.values()].map(building => {
+      const roof = buildingRoof(building, me);
+      if (!roof || roof.inside) return null;
+      const x = Math.floor(building.x), y = Math.floor(roof.top) + roof.height - 1;
+      return game.world.inBounds(x, y) && visible[y * W + x] ? roof : null;
+    }).filter(Boolean);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const tx = x0 + c, ty = y0 + r, o = (r * cols + c) * 4;
         let a = FOG_UNSEEN;
         if (game.world.inBounds(tx, ty)) {
           const i = ty * W + tx;
-          const roof = visibleRoofs.some(cabin => tx >= cabin.x - 2.5 && tx < cabin.x + 2.5 && ty >= cabin.y - 1.5 && ty < cabin.y + 1.5);
+          const roof = visibleRoofs.some(r => tx >= r.left && tx < r.left + r.width && ty >= r.top && ty < r.top + r.height - 1);
           a = visible[i] || roof ? 0 : seen[i] ? FOG_SEEN : FOG_UNSEEN;
         }
         img.data[o] = fog[0]; img.data[o + 1] = fog[1]; img.data[o + 2] = fog[2]; img.data[o + 3] = a;
