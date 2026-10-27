@@ -5,6 +5,7 @@ import { updateDirector, noteDamage, pickType, TUNING } from './director.js';
 import { lightReaches, isLit } from './light.js';
 import './farm-server.js';
 import './dynamite-server.js';
+import './giant-potion-server.js';
 import './monsters-server.js';
 import { dropLoot, updateDrops } from './loot.js';
 const WINDUP = 0.4; // seconds of visible wind-up before a bite lands: the parry cue
