@@ -15,17 +15,16 @@ You decide what players find when they explore. Your world passes run on the ser
 
 ## Redstone lights
 
-Redstone and power-crystal ores appear in veins inside rock. Existing iron, gold,
-and diamond veins keep their seed-based positions when the new ores are added.
-Mine redstone to craft wire (one redstone makes four) and lamps (two redstone and
-two stone). A power crystal can be placed directly as a reusable power source.
-
-Right-click to place a source, wire, or lamp on grass, sand, or gravel. Power
-travels through wire in the four cardinal directions; lamps beside a powered wire
-or an active source turn on. A lamp provides visibility but does not repel monsters.
-Right-click a source to toggle it. Hold a pickaxe and right-click a source or lamp
-to pick it up; mine wire to retrieve it and restore the ground underneath. Sources
-do not run out of charge.
+Mine redstone in rock to craft wire (one redstone makes four) and lamps (two
+redstone and two stone). Right-click to place wire or a lamp on grass, sand, or
+gravel. A newly placed lamp is on and supplies its own power; right-click it to
+switch its power supply on or off. It powers adjacent wire, which conducts in the
+four cardinal directions. A switched-off lamp lights up when fed by another active
+lamp or an older power crystal, so all connected sources must be off to darken it.
+Lamps prevent monster spawning within their light, but do not repel monsters.
+Hold a pickaxe and right-click a lamp or older power crystal to pick it up; mine
+wire to retrieve it and restore its ground. Existing crystal ores and sources are
+preserved for compatibility with saved worlds; crystals are not needed for lamps.
 
 ## Goals, in priority order
 

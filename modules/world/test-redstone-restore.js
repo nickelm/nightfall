@@ -81,6 +81,11 @@ try {
   await equip(a, 'redstone-lamp');
   a.action('use', { x: 85, y: 80 });
   await until(() => a.snap.entities.some(e => e.type === 'redstone-lamp' && e.powered));
+  const empty = a.me().hotbar.findIndex(item => !item);
+  assert.notEqual(empty, -1);
+  a.action('select', { slot: empty }); await until(() => a.me().selected === empty);
+  a.action('interact', { x: 85, y: 80 });
+  await until(() => a.snap.entities.some(e => e.type === 'redstone-lamp' && !e.on && e.powered));
 
   await stop();
   assert.ok(fs.existsSync(stateFile), 'server saved its state');
@@ -99,6 +104,16 @@ try {
   await until(() => !b.world.tile(83, 80).powered && !b.world.tile(84, 80).powered &&
     b.snap.entities.some(e => e.type === 'redstone-lamp' && !e.powered && e.light === 0));
   console.log('PASS the restored power source still switches the complete circuit off');
+  b.move(84.5, 79.5); await until(() => b.me().x === 84.5);
+  b.action('interact', { x: 85, y: 80 });
+  await until(() => b.world.tile(83, 80).powered && b.snap.entities.some(e => e.type === 'redstone-lamp' && e.on && e.light === 6));
+  await stop();
+  await start(true);
+  const c = await connect();
+  await until(() => c.world.tile(83, 80).powered && c.snap.entities.some(e => e.type === 'redstone-lamp' && e.on && e.light === 6));
+  c.action('interact', { x: 85, y: 80 });
+  await until(() => !c.world.tile(83, 80).powered && c.snap.entities.some(e => e.type === 'redstone-lamp' && !e.on && e.light === 0));
+  console.log('PASS a self-powered lamp remains on after restart and can still switch off');
 } catch (err) { failed = true; console.error(err); }
 finally {
   clients.forEach(c => c.ws.close());
