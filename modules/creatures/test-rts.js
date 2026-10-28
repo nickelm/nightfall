@@ -1,4 +1,4 @@
-// RTS mode: peasants mine near a click, deliver to Minas Tirith, and loads are shared.
+// RTS mode: peasants mine near a click and deliver to the nearest chest.
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,11 +15,8 @@ try {
   for (let y = 55; y < 58; y++) for (let x = 85; x < 88; x++) game.setTile(x, y, 'tree');
   const a = game.spawn('player', { name: 'A', x: 50.5, y: 50.5, inventory: {}, hp: 10, maxHp: 10 });
   const b = game.spawn('player', { name: 'B', x: 52.5, y: 50.5, inventory: {}, hp: 10, maxHp: 10 });
-  // Build a real Minas Tirith (walls and all) with its entrance at (60, 70).
-  Object.assign(a, { x: 60.5, y: 71.5, hotbar: ['minas-tirith', null, null, null, null, null, null, null, null], selected: 0 });
-  game.give(a, 'minas-tirith', 1);
-  act('use', a, { x: 60, y: 70 });
-  assert.ok([...game.entities.values()].some((e) => e.type === 'minas-tirith'), 'Minas Tirith was built');
+  const near = game.spawn('chest', { x: 70.5, y: 60.5 });
+  const far = game.spawn('chest', { x: 45.5, y: 75.5 });
 
   act('rts', a, { on: true });
   const peasants = () => [...game.entities.values()].filter((e) => e.type === 'peasant' && e.owner === a.id);
@@ -29,10 +26,18 @@ try {
 
   act('rtsOrder', a, { x: 86.5, y: 56.5 });
   tick(60);
-  const wood = (a.inventory.wood || 0) + (b.inventory.wood || 0);
-  assert.ok(wood >= 4, `wood was delivered (${wood})`);
-  assert.ok(Math.abs((a.inventory.wood || 0) - (b.inventory.wood || 0)) <= 0, 'both players got the same share');
-  console.log(`PASS peasants mined and delivered ${wood} wood, split equally`);
+  const wood = near.inventory.wood || 0;
+  assert.ok(wood >= 4, `wood went into the nearest chest (${wood})`);
+  assert.equal(far.inventory.wood || 0, 0, 'the far chest got nothing');
+  assert.equal((a.inventory.wood || 0) + (b.inventory.wood || 0), 0, 'nothing went straight to the players');
+  console.log(`PASS peasants mined and delivered ${wood} wood to the nearest chest`);
+
+  game.despawn(near.id); game.despawn(far.id);
+  for (let y = 55; y < 58; y++) for (let x = 85; x < 88; x++) game.setTile(x, y, 'tree'); // regrow the grove
+  act('rtsOrder', a, { x: 86.5, y: 56.5 });
+  tick(20);
+  assert.ok(peasants().some((e) => e.task === 'waiting' && e.carry), 'without a chest peasants wait with their load');
+  console.log('PASS without a chest the peasants wait');
 
   act('rts', a, { on: false });
   tick(0.1);

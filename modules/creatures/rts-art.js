@@ -12,7 +12,7 @@ import { RTS } from './shared.js';
 const PAN = 16;     // camera speed, tiles per second
 const EDGE = 18;    // pixels from the screen edge that pan the camera
 const TASKS = { idle: 'idle', seek: 'looking', toMine: 'walking', mining: 'mining', return: 'heading home',
-  toHall: 'delivering', waiting: 'waiting for a hall' };
+  toHall: 'delivering', waiting: 'waiting for a chest' };
 
 function enter(game) {
   const me = game.me, s = game._rts;

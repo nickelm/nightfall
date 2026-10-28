@@ -1,13 +1,14 @@
 // RTS mode (server): the 'rts' action swaps a player's hero for three peasants, and
 // 'rtsOrder' sends them to mine around a spot. Each peasant walks a tile path (4-way BFS)
-// to the nearest unclaimed harvestable tile in its area, mines it, carries the load to the
-// nearest Minas Tirith, and the load is shared equally among everyone online.
+// to the nearest unclaimed harvestable tile in its area, mines it, and carries the load to
+// the nearest chest (Survival's), where anyone can take it out.
 import { registerSystem, onAction, onEvent } from '../../shared/registry.js';
 import { RTS } from './shared.js';
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const peasantsOf = (game, id) => [...game.entities.values()].filter((e) => e.type === 'peasant' && e.owner === id);
 const halls = (game) => [...game.entities.values()].filter((e) => e.type === RTS.hall);
+const chests = (game) => [...game.entities.values()].filter((e) => e.type === 'chest');
 const nearest = (list, x, y) => list.reduce((best, e) => (!best || Math.hypot(e.x - x, e.y - y) < Math.hypot(best.x - x, best.y - y) ? e : best), null);
 // Peasants mine anything harvestable except what players built.
 const minable = (tile) => !!tile?.harvest && !tile.structure;
@@ -58,20 +59,6 @@ function note(game, e, text) {
   game.sendTo(owner.id, 'rtsNote', { text });
 }
 
-// Split a load equally among everyone online; remainders wait in a pool for the next load.
-function share(game, item, count) {
-  const players = game.players();
-  if (!players.length) return;
-  const pool = (game._rtsPool ||= {});
-  pool[item] = (pool[item] || 0) + count;
-  const each = Math.floor(pool[item] / players.length);
-  if (!each) return;
-  pool[item] -= each * players.length;
-  for (const p of players) {
-    game.give(p, item, each);
-    game.sendTo(p.id, 'pickedUp', { item, count: each });
-  }
-}
 
 function seek(game, e) {
   const { world } = game, area = e.area;
@@ -96,16 +83,17 @@ function seek(game, e) {
   e._job = job; e._path = path; e.task = 'toMine';
 }
 
+// Head for the nearest chest: any walkable tile next to it (or under it) will do.
 function goHome(game, e) {
-  const hall = nearest(halls(game), e.x, e.y);
-  const path = hall && findPath(game.world, e.x, e.y, (x, y) =>
-    Math.abs(x + 0.5 - hall.x) <= RTS.hallW / 2 + 1 && Math.abs(y + 0.5 - (hall.y + 0.5)) <= RTS.hallH / 2 + 1);
+  const chest = nearest(chests(game), e.x, e.y);
+  const path = chest && findPath(game.world, e.x, e.y, (x, y) =>
+    Math.abs(x + 0.5 - chest.x) <= 1.1 && Math.abs(y + 0.5 - chest.y) <= 1.1);
   if (!path) {
     e.task = 'waiting'; e._retry = 2;
-    note(game, e, hall ? 'Your peasants cannot reach Minas Tirith' : 'Build Minas Tirith so your peasants can deliver');
+    note(game, e, chest ? 'Your peasants cannot reach a chest' : 'Place a chest so your peasants can deliver');
     return;
   }
-  e._path = path; e.task = 'toHall';
+  e._path = path; e.task = 'toHall'; e._chest = chest.id;
 }
 
 function think(game, e, dt) {
@@ -137,11 +125,14 @@ function think(game, e, dt) {
     case 'waiting':
       if ((e._retry -= dt) <= 0) goHome(game, e);
       break;
-    case 'toHall':
-      if (e.carry) share(game, e.carry, e.carryCount);
-      e.carry = null; e.carryCount = 0;
+    case 'toHall': {
+      const chest = game.entities.get(e._chest);
+      if (chest?.type !== 'chest' || Math.hypot(chest.x - e.x, chest.y - e.y) > 1.6) { goHome(game, e); break; } // picked up or moved
+      if (e.carry) game.give(chest, e.carry, e.carryCount);
+      e.carry = null; e.carryCount = 0; e._chest = null;
       e.task = e.area ? 'seek' : 'idle';
       break;
+    }
   }
 }
 
@@ -159,9 +150,9 @@ onAction('rts', (game, player, { on }) => {
   player.rts = on;
   for (const e of peasantsOf(game, player.id)) game.despawn(e.id);
   if (!on) return;
-  const hall = nearest(halls(game), player.x, player.y);
-  // Below the hall's south wall if there is one, else where the hero stood.
-  const cx = hall ? hall.x : player.x, cy = hall ? hall.y + RTS.hallH / 2 + 1.5 : player.y;
+  const chest = nearest(chests(game), player.x, player.y);
+  // Next to the nearest chest if there is one, else where the hero stood.
+  const cx = chest ? chest.x : player.x, cy = chest ? chest.y + 1 : player.y;
   for (let i = 0; i < RTS.peasants; i++) {
     const spot = game.world.findWalkable(cx + i - 1, cy, 20);
     game.spawn('peasant', { x: spot.x, y: spot.y, owner: player.id });
@@ -178,7 +169,8 @@ onAction('rtsOrder', (game, player, { x, y }) => {
 });
 
 // Dev mode: `node server/dev.js HALL=1` builds a Minas Tirith just north of the first player
-// to join when there is none yet, clearing whatever stands in its way. The layout matches
+// to join when there is none yet, clearing whatever stands in its way, and puts a chest
+// beside its door for the peasants (unless a chest exists already). The layout matches
 // Survival's (walls around, floor inside, a door in the middle of the south wall), so its
 // building-integrity check keeps it. Once per server run.
 const HALL_TILES = { wall: 'white-city-wall', floor: 'white-city-floor', door: 'door-closed', clear: 'grass' };
@@ -187,7 +179,11 @@ registerSystem('dev-hall', (game) => {
   const p = game.players()[0];
   if (!p) return;
   game._devHall = true;
-  if (halls(game).length) return;
+  if (halls(game).length) { // an old world: just make sure there is a chest
+    const spot = game.world.findWalkable(p.x + 1, p.y, 10);
+    if (!chests(game).length) game.spawn('chest', { x: spot.x, y: spot.y, owner: p.id });
+    return;
+  }
   const half = (RTS.hallW - 1) / 2;
   const x = Math.min(game.world.w - half - 3, Math.max(half + 2, Math.floor(p.x)));
   const y = Math.min(game.world.h - 4, Math.max(RTS.hallH + 1, Math.floor(p.y) - 2)); // the door row
@@ -200,8 +196,9 @@ registerSystem('dev-hall', (game) => {
     else if (tile && (tile.solid || tile.hurts || tile.structure)) game.setTile(tx, ty, HALL_TILES.clear); // a clear path around it
   }
   game.spawn(RTS.hall, { x: x + 0.5, y: y - (RTS.hallH - 1) / 2, owner: p.id });
+  if (!chests(game).length) game.spawn('chest', { x: x + 2.5, y: y + 1.5, owner: p.id });
   game.teleport(p, x + 0.5, y + 1.5); // in front of the door
-  console.log(`[dev] HALL=1: built Minas Tirith with its door at ${x},${y}`);
+  console.log(`[dev] HALL=1: built Minas Tirith with its door at ${x},${y}, and a chest`);
 });
 
 // The hidden hero cannot be hurt while its owner plays the RTS view.

@@ -1,4 +1,4 @@
-// HALL=1 dev mode: a Minas Tirith appears next to the first player and survives integrity checks.
+// HALL=1 dev mode: a Minas Tirith and a chest appear next to the first player, and the hall survives integrity checks.
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,6 +16,7 @@ try {
   const halls = [...game.entities.values()].filter((e) => e.type === 'minas-tirith');
   assert.equal(halls.length, 1, 'one Minas Tirith was built');
   assert.ok(!game.world.blocked(a.x, a.y), 'the player stands on open ground');
+  assert.equal([...game.entities.values()].filter((e) => e.type === 'chest').length, 1, 'a chest was placed');
   tick(1);
   assert.equal([...game.entities.values()].filter((e) => e.type === 'minas-tirith').length, 1, 'only once, and it stays');
   console.log(`PASS HALL=1 built Minas Tirith at ${halls[0].x}, ${halls[0].y}`);

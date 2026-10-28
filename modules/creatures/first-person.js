@@ -1,4 +1,4 @@
-// First-person view (first version): F2 or the Esc settings switch between the normal
+// First-person view, Doom style (weapon and status bar in doom-hud.js): F2 or the Esc settings switch between the normal
 // top-down view and a raycast view from your own eyes. Solid and opaque tiles are walls,
 // the floor shows the tiles you stand on, entities are their usual drawers as billboards,
 // and darkness, light and fog of war follow the same rules as the top-down view.
@@ -9,6 +9,7 @@
 import { registries, registerClientSystem, registerHud, registerSetting } from '../../shared/registry.js';
 import { saveSetting } from '../../client/core/settings.js';
 import { safely } from '../../shared/safe.js';
+import { drawDoomHud, hintHeight, noteInput, viewHeight, wallTexel } from './doom-hud.js';
 
 registerSetting('view', { label: 'View (F2)', options: ['top', 'first'], default: 'top', names: { top: 'top-down', first: 'first person' } });
 
@@ -17,7 +18,9 @@ const MAX_DIST = 16;     // tiles; past this everything is fog
 const AIM_AHEAD = 1.2;   // where the virtual mouse sits, in tiles ahead of the player
 const TURN = 0.0035;     // radians per pixel of mouse movement
 const RES_W = 320;       // width of the low-resolution scene buffer
-const WORLD_OVERLAYS = ['/aim', '/target', '/redstone-placement', '/dynamite-blasts']; // earlier HUDs drawn in world space
+const WORLD_OVERLAYS = ['/aim', '/target', '/redstone-placement', '/dynamite-blasts', '/health-bars', '/spell-target']; // earlier HUDs drawn in world space
+const REPLACED = ['/hotbar', '/mana-bar']; // the Doom status bar shows these
+const BANDS = 12;        // light falls off in steps, like the old raycasters
 
 const on = (game) => game.settings.view === 'first' && game.me && game.world;
 
@@ -70,6 +73,7 @@ registerClientSystem('first-person', (game) => {
   }
   if (game.ui) { if (document.pointerLockElement === canvas) document.exitPointerLock?.(); return; }
   parkMouse(game);
+  noteInput(game, { x: game.me.x + game.me.dir.x * AIM_AHEAD, y: game.me.y + game.me.dir.y * AIM_AHEAD });
 });
 
 // --- light at a point: daylight, or the brightest light source reaching it ---
@@ -92,7 +96,9 @@ let img = null;
 registerHud('first-person', (ctx, game, w, h) => {
   if (!on(game)) return;
   const me = game.me, world = game.world, vis = game.vision;
-  const RW = RES_W, RH = Math.max(60, Math.round((RES_W * h) / w));
+  const foot = hintHeight(ctx, game, w); // the core key hints stay readable under the status bar
+  const vh = viewHeight(w, h - foot);
+  const RW = RES_W, RH = Math.max(60, Math.round((RES_W * vh) / w));
   if (buf.width !== RW || buf.height !== RH) { buf.width = RW; buf.height = RH; img = null; }
   img ||= bctx.createImageData(RW, RH);
   const px = img.data;
@@ -110,7 +116,8 @@ registerHud('first-person', (ctx, game, w, h) => {
     if (!world.inBounds(tx, ty)) return 0;
     const i = ty * world.w + tx;
     const seen = vis ? (vis.visible[i] ? 1 : vis.seen[i] ? 0.35 : 0) : 1;
-    return seen * lightAt(wx, wy, day, lights) * Math.max(0, 1 - dist / MAX_DIST);
+    const s = seen * lightAt(wx, wy, day, lights) * Math.max(0, 1 - dist / MAX_DIST);
+    return Math.ceil(s * BANDS) / BANDS;
   };
   const put = (o, c, s) => {
     px[o] = c[0] * s + fogC[0] * (1 - s);
@@ -123,12 +130,19 @@ registerHud('first-person', (ctx, game, w, h) => {
   const rx = -dy * FOV, ry = dx * FOV; // camera plane: right of facing
   const half = RH / 2;
 
-  // sky: dusk purple by day, night at night
-  const skyDay = rgb('#6d5a8e'), skyNight = rgb('#120a20');
+  // sky: dusk purple by day, night at night, with a ring of jagged hills that turns with you
+  const skyDay = rgb('#6d5a8e'), skyNight = rgb('#120a20'), hillC = rgb('#2a1a2e');
+  const facing = Math.atan2(dy, dx);
   for (let y = 0; y < half; y++) {
     const t = y / half, s = 1 - darkness;
     const c = [0, 1, 2].map((k) => (skyDay[k] * s + skyNight[k] * (1 - s)) * (0.6 + 0.4 * t));
     for (let x = 0; x < RW; x++) put((y * RW + x) * 4, c, 1);
+  }
+  for (let x = 0; x < RW; x++) {
+    const a = facing + Math.atan(((2 * x) / RW - 1) * FOV);
+    const hill = 0.16 + 0.07 * Math.sin(a * 3) + 0.05 * Math.sin(a * 7 + 1) + 0.03 * Math.abs(Math.sin(a * 23));
+    const top = Math.floor(half * (1 - hill));
+    for (let y = top; y < half; y++) put((y * RW + x) * 4, hillC, 0.5 + 0.5 * (1 - darkness) * ((y - top) / (half - top + 1)));
   }
 
   // floor: cast each row of pixels onto the ground
@@ -141,8 +155,11 @@ registerHud('first-person', (ctx, game, w, h) => {
       const t = world.tile(tx, ty);
       const o = (y * RW + x) * 4;
       if (!t) { put(o, fogC, 1); continue; }
-      const grain = ((tx * 7 + ty * 13) & 3) * 0.03; // a little checker so motion reads
-      put(o, rgb(t.color), shadeOf(tx, ty, rowDist, fx, fy) * (0.85 + grain));
+      // 8x8 texels per tile with a dark seam at the tile edge, so motion reads
+      const u = fx - tx, v = fy - ty, iu = (u * 8) | 0, iv = (v * 8) | 0;
+      const grain = ((((iu * 31 + iv * 17 + tx * 7 + ty * 13) * 2654435761) >>> 29) / 7) * 0.12;
+      const seam = iu === 0 || iv === 0 ? 0.8 : 1;
+      put(o, rgb(t.color), shadeOf(tx, ty, rowDist, fx, fy) * (0.82 + grain) * seam);
     }
   }
 
@@ -173,16 +190,21 @@ registerHud('first-person', (ctx, game, w, h) => {
     // light the wall from the open side the ray came from
     const s = shadeOf(mx, my, dist, wx - stepX * 0.05 * (1 - side), wy - stepY * 0.05 * side) * (side ? 0.78 : 1);
     const c = rgb(hit.color);
+    let u = side === 0 ? wy - Math.floor(wy) : wx - Math.floor(wx);
+    if ((side === 0 && rdx > 0) || (side === 1 && rdy < 0)) u = 1 - u;
+    const top = half - lineH / 2;
     for (let y = y0; y < y1; y++) {
-      const edge = y === y0 || y === y1 - 1 ? 0.7 : 1;
-      put((y * RW + x) * 4, c, s * edge);
+      const v = Math.min(0.999, Math.max(0, (y - top) / lineH));
+      put((y * RW + x) * 4, c, Math.min(1, s * wallTexel(hit.name, u, v, mx, my)));
     }
   }
 
   bctx.putImageData(img, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(buf, 0, 0, w, h);
+  ctx.drawImage(buf, 0, 0, w, vh);
   ctx.imageSmoothingEnabled = true;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, w, vh); ctx.clip();
 
   // entities: their usual drawers as billboards, far to near, hidden behind walls
   const sprites = [];
@@ -200,8 +222,8 @@ registerHud('first-person', (ctx, game, w, h) => {
   }
   sprites.sort((a, b) => b.depth - a.depth);
   for (const { e, depth, sx } of sprites) {
-    const size = (h / depth) * 0.9; // a tile seen at this depth
-    const sy = h / 2 + h / (2 * depth) - size * 0.4;
+    const size = (vh / depth) * 0.9; // a tile seen at this depth
+    const sy = vh / 2 + vh / (2 * depth) - size * 0.4;
     const drawer = registries.drawers.get(e.type);
     ctx.save();
     ctx.globalAlpha = Math.max(0.25, 1 - depth / MAX_DIST);
@@ -212,27 +234,29 @@ registerHud('first-person', (ctx, game, w, h) => {
     }
     ctx.restore();
   }
+  ctx.restore();
+
+  ctx.fillStyle = '#16120f';
+  ctx.fillRect(0, h - foot, w, foot);
+  drawDoomHud(ctx, game, w, h - foot, vh);
 
   // Teams loaded before us (hotbar, inventory, hints) drew their HUDs under the scene:
   // draw the screen-space ones again on top. World-space overlays would be in the wrong place.
   for (const hud of registries.huds) {
     if (hud.name.endsWith('/first-person')) break;
-    if (WORLD_OVERLAYS.some((n) => hud.name.endsWith(n))) continue;
+    if (WORLD_OVERLAYS.some((n) => hud.name.endsWith(n)) || REPLACED.some((n) => hud.name.endsWith(n))) continue;
     ctx.save();
     ctx.font = game.font(14); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.globalAlpha = 1;
     safely(hud.name, hud.fn, ctx, game, w, h);
     ctx.restore();
   }
 
-  // crosshair and hint
+  // a small crosshair dot and hint
   const C = game.theme.colors;
-  ctx.strokeStyle = C.candle; ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(w / 2 - 8, h / 2); ctx.lineTo(w / 2 + 8, h / 2);
-  ctx.moveTo(w / 2, h / 2 - 8); ctx.lineTo(w / 2, h / 2 + 8);
-  ctx.stroke();
+  ctx.fillStyle = C.candle;
+  ctx.fillRect(w / 2 - 2, vh / 2 - 2, 4, 4);
   if (document.pointerLockElement !== canvas) {
     ctx.font = game.font(16); ctx.textAlign = 'center'; ctx.fillStyle = C.bone;
-    ctx.fillText('Click to look around with the mouse · F2 for top-down', w / 2, h / 2 + 24);
+    ctx.fillText('Click to look around with the mouse · F2 for top-down', w / 2, vh / 2 + 24);
   }
 });
