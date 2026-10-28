@@ -67,13 +67,17 @@ registerKeyHint('RMB pen', 'house / feed / collect');
 registerKeyHint('F3', 'director debug');
 registerKeyHint('F4', 'RTS mode');
 
-// RTS mode (rts-server.js, rts-art.js): F4 hides your hero and gives you `peasants` workers.
-// A click sends them to mine the harvestable tiles within `radius` of that spot; each load
-// goes into the nearest chest. Mining takes the tile's hardness times `mineSlow`, at most
-// `maxMine` s. `hall`, `hallW` x `hallH`: the Minas Tirith the HALL=1 dev mode builds.
-export const RTS = { peasants: 3, speed: 3, radius: 7, mineSlow: 1.5, maxMine: 8, hall: 'minas-tirith', hallW: 13, hallH: 10 };
-registerEntityType('peasant', { owner: null, speed: RTS.speed, task: 'idle', carry: null, carryCount: 0, work: 0, area: null,
-  dir: { x: 0, y: 1 }, light: 1.5, lightColor: '#ffd27a' });
+// RTS mode (rts-server.js, rts-ui.js, rts-art.js): F4 hides your hero and opens a Warcraft-style
+// command view over your peasants. You start with `peasants` of them and can train up to
+// `maxPeasants` (`trainCost`, `trainTime` s each) at a Minas Tirith or a chest. Ordered onto
+// a resource, they mine the harvestable tiles within `radius` of it and carry each load to the
+// nearest chest. Mining takes the tile's hardness times `mineSlow`, at most `maxMine` s; a chest
+// takes `buildTime` s to build and costs its normal recipe. Costs come out of the chests first,
+// then your own pack. `hall`, `hallW` x `hallH`: the Minas Tirith (HALL=1 dev mode builds one).
+export const RTS = { peasants: 3, maxPeasants: 12, trainCost: { wood: 5 }, trainTime: 6, buildTime: 3,
+  speed: 3, radius: 7, mineSlow: 1.5, maxMine: 8, hall: 'minas-tirith', hallW: 13, hallH: 10 };
+registerEntityType('peasant', { owner: null, ownerName: null, speed: RTS.speed, task: 'idle', carry: null, carryCount: 0, work: 0, area: null,
+  site: null, dir: { x: 0, y: 1 }, light: 1.5, lightColor: '#ffd27a' });
 
 // Dynamite: three lava make one stick; right click places it, and it explodes after
 // `fuse` seconds, dealing `damage` to everything within `radius` tiles (dynamite-server.js).
