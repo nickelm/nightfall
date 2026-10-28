@@ -1,11 +1,19 @@
-// TEAM PLAYER (helper for both sides): who a spell may target, and whether the
-// caster can see it. Server and client run the same checks, so the target ring
-// on the client agrees with what the server allows.
+// TEAM PLAYER (helper for both sides): which spell each casting item fires, who a
+// spell may target, and whether the caster can see it. Server and client run the
+// same checks, so the target ring on the client agrees with what the server allows.
 
-// Which spell each mouse button casts on a foe, a friend, or yourself while holding the staff.
-export const SPELL_FOR = {
-  left: { foe: 'fireball', friend: 'mend', self: 'mend' },
-  right: { foe: 'firestorm', friend: 'heal', self: 'nova' },
+// Per casting item and mouse button: the spell cast at a foe, a friend, yourself, or
+// empty ground. A button with nothing for what is under the cursor does its usual
+// thing (swing, mine, guard). Staff: offensive magic. Mace: defensive (cleric) magic.
+export const SPELLS_BY_ITEM = {
+  staff: {
+    left: { foe: 'fireball', self: 'nova', ground: 'fireball' },
+    right: { foe: 'firestorm', ground: 'firestorm' },
+  },
+  mace: {
+    left: { friend: 'heal', self: 'heal' },
+    right: { friend: 'mend', self: 'mend' },
+  },
 };
 
 /** 'foe' (monsters and predators), 'friend' (another living player), 'self', or null. */

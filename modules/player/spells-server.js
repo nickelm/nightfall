@@ -1,6 +1,7 @@
-// TEAM PLAYER (server helper): mana and spells. Owning a staff gives a mana pool;
-// with the staff in hand the client sends `cast { spell, target }` (fireball,
-// firestorm, heal), `cast { spell, x, y }` (fireball or firestorm at empty ground),
+// TEAM PLAYER (server helper): mana and spells. Owning a staff or a mace gives a mana
+// pool; with the right one in hand (each spell's `item`) the client sends
+// `cast { spell, target }` (fireball, firestorm, nova with the staff; heal with the mace),
+// `cast { spell, x, y }` (fireball or firestorm at empty ground),
 // or `mend { target }` / `mend { stop }` (hold to heal a friend or yourself over time).
 // Spells need line of sight to their target unless they say `sight: false` (sight.js).
 // Spell numbers live in the registerSpell calls in shared.js.
@@ -13,14 +14,14 @@ const HIT_RADIUS = 0.5;  // tiles: a fireball explodes this close to a foe
 const SUBSTEPS = 3;
 
 const isFoe = (e) => relation({ id: null }, e) === 'foe';
-const holdsStaff = (p) => p.hotbar?.[p.selected] === 'staff';
+const CASTERS = ['staff', 'mace']; // owning either gives a mana pool
 
 // Why `p` may not aim `spell` at `target` (an entity) or at `point` (empty ground)
 // right now, or null if it may. Cooldown and mana are checked separately (a held
 // mend skips the cooldown). A fireball at empty ground is just a direction.
 function blocked(game, p, spell, target, point = null) {
-  if (!(p.hp > 0) || !holdsStaff(p)) return 'Hold the staff to cast';
-  if (!spell) return 'No target';
+  if (!(p.hp > 0) || !spell) return 'No target';
+  if (p.hotbar?.[p.selected] !== spell.item) return `Hold the ${spell.item} to cast that`;
   if (target ? ![].concat(spell.on).includes(relation(p, target)) : !(point && spell.free)) return 'No target';
   if (!target && spell.free === 'direction') return null;
   const at = target || point;
@@ -100,10 +101,10 @@ onAction('mend', (game, p, { target: id, stop } = {}) => {
   game.broadcast('cast', { spell: 'mend', id: p.id, x: p.x, y: p.y, target: target.id, tx: target.x, ty: target.y });
 });
 
-// Owning a staff gives a mana pool, which refills unless a mend is spending it.
+// Owning a staff or a mace gives a mana pool, which refills unless a mend is spending it.
 registerSystem('mana', (game, dt) => {
   for (const p of game.players()) {
-    p.maxMana = game.has(p, 'staff') ? MAX_MANA : 0;
+    p.maxMana = CASTERS.some((item) => game.has(p, item)) ? MAX_MANA : 0;
     p.mana = Math.min(p.maxMana, p.mana || 0);
     if (!p._mending) p.mana = Math.min(p.maxMana, p.mana + MANA_REGEN * dt);
   }

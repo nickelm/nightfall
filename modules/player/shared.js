@@ -35,20 +35,23 @@ registerKeyHint('RMB water with boat', 'board');
 registerKeyHint('Boat', 'lands automatically');
 registerKeyHint('RMB portal', 'enter; WASD travel, Space exit');
 
-// Magic. Craft a staff to get a mana bar; with the staff in hand, the mouse button and
-// what is under the cursor pick the spell (sight.js). Spells need line of sight to their
-// target unless they say `sight: false` (heals and firestorms reach around walls).
-// `free`: cast at empty ground too, as a shot in that direction or at that point.
-registerItem('staff', { color: '#6a3fa0', gear: 2 });
+// Magic. Craft a staff (offensive) or a mace (defensive, a cleric's) to get a mana bar;
+// with one in hand, the mouse button and what is under the cursor pick the spell
+// (SPELLS_BY_ITEM in sight.js). `item`: what you must hold to cast it. Spells need line
+// of sight to their target unless they say `sight: false` (heals and firestorms reach
+// around walls). `free`: cast at empty ground too, as a shot in that direction or at that point.
+registerItem('staff', { color: '#6a3fa0', gear: 2, damage: 1 }); // damage: the default, but it files the staff under Weapons
 registerRecipe('staff', { inputs: { wood: 3, 'monster-goo': 3 }, output: { staff: 1 } });
-registerSpell('fireball',  { on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
-registerSpell('firestorm', { on: 'foe',    free: 'point',     sight: false, cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
-registerSpell('heal',      { on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0.6, range: 22, amount: 2 }); // cheap and far-reaching: hold to keep healing
-registerSpell('mend',      { on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0,   range: 22, drain: 1, rate: 2 }); // held: drain mana/s, rate hp/s
+registerItem('mace', { color: '#e8c25a', gear: 2, damage: 2 }); // swings like a sword, but never taunts
+registerRecipe('mace', { inputs: { wood: 2, stone: 2, 'monster-goo': 3 }, output: { mace: 1 } });
+registerSpell('fireball',  { item: 'staff', on: 'foe',    free: 'direction', cost: 3,  cooldown: 0.5, range: 11, damage: 3, speed: 11 });
+registerSpell('firestorm', { item: 'staff', on: 'foe',    free: 'point',     sight: false, cost: 10, cooldown: 5,   range: 11, damage: 2, radius: 2.5, meteors: 10, duration: 1.8, splash: 1 });
+registerSpell('heal',      { item: 'mace',  on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0.6, range: 22, amount: 2 }); // cheap and far-reaching: hold to keep healing
+registerSpell('mend',      { item: 'mace',  on: ['friend', 'self'],          sight: false, cost: 1,  cooldown: 0,   range: 22, drain: 1, rate: 2 }); // held: drain mana/s, rate hp/s
 // A purple nova bursting out of the caster: huge damage to every foe in reach, but it
 // also hurts any friend caught in it; the caster is unharmed.
 // Cheap and quick to repeat: the danger is to the people standing next to you.
-registerSpell('nova',      { on: 'self',                      cost: 3,  cooldown: 1,   range: 1,  radius: 3.5, damage: 8, friendDamage: 2 });
+registerSpell('nova',      { item: 'staff', on: 'self',                      cost: 3,  cooldown: 1,   range: 1,  radius: 3.5, damage: 8, friendDamage: 2 });
 
 // A homing fireball; a short-lived burst of light where something explodes (blast);
 // meteors raining on an area (firestorm). All carry `light`, so they light the night.
@@ -56,6 +59,6 @@ registerEntityType('fireball', { vx: 0, vy: 0, target: null, owner: null, damage
 registerEntityType('blast', { light: 0, lightColor: '#ffe070', age: 0, ttl: 0.6, peak: 3.5, hot: '#ffe070', cool: '#ff3a10' });
 registerEntityType('firestorm', { radius: 2.5, ttl: 1.8, owner: null, light: 3, lightColor: '#ff3a10' });
 
-registerKeyHint('Staff LMB', 'fireball / mend friend or self (hold)');
-registerKeyHint('Staff RMB', 'firestorm / heal friend (hold) / nova on self');
+registerKeyHint('Staff', 'LMB fireball (on yourself: nova) · RMB firestorm');
+registerKeyHint('Mace', 'LMB heal · RMB mend (hold), on a friend or yourself');
 registerKeyHint('Sword', 'swings taunt nearby foes');

@@ -1,4 +1,4 @@
-// Real multiplayer server: craft a staff, then fireball, line of sight, heal, mend, taunt, firestorm, nova.
+// Real multiplayer server: craft a staff and a mace, then fireball, line of sight, heal, mend, taunt, firestorm, nova.
 import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 process.env.PORT = '8138'; process.env.SEED = '4242'; process.env.START_TIME = '10';
@@ -34,6 +34,12 @@ try {
   await until(() => a.me().maxMana === 20 && a.me().hotbar[0] === 'staff');
   pa.mana = 20;
 
+  // and a mace for the healing spells, in slot 2
+  game.give(pa, 'wood', 2); game.give(pa, 'stone', 2); game.give(pa, 'monster-goo', 3);
+  a.action('craft', { recipe: 'mace' }); await until(() => a.me().inventory.mace === 1);
+  a.action('hotbar', { slot: 1, item: 'mace' }); await until(() => a.me().hotbar[1] === 'mace');
+  const hold = async (slot) => { a.action('select', { slot }); await until(() => pa.selected === slot); };
+
   // fireball
   const z1 = frozen(238.5, 240.5);
   a.action('cast', { spell: 'fireball', target: z1.id });
@@ -55,8 +61,14 @@ try {
   a.action('cast', { spell: 'fireball', x: 235, y: 240.5 });
   await until(() => byMage.slice(hits).some(h => h.target === z1));
 
-  // heal a hurt friend
+  // healing takes the mace: the staff cannot heal
   pb.hp = 4;
+  a.action('cast', { spell: 'heal', target: pb.id });
+  await until(() => a.events.some(m => m.name === 'spellFail' && m.data.reason === 'Hold the mace to cast that'));
+  assert.equal(pb.hp, 4);
+  await hold(1);
+
+  // heal a hurt friend
   game.setTile(233, 239, 'stone-block'); // heals reach around walls
   assert.ok(!clearLine(game.world, pa.x, pa.y, pb.x, pb.y));
   a.action('cast', { spell: 'heal', target: pb.id });
@@ -89,11 +101,13 @@ try {
   b.action('attack'); await until(() => zt.tauntedBy === pb.id);
   assert.equal(nearestPlayer(game, zt, 8), pb, 'taunted foes chase the fighter');
   assert.ok(b.events.some(m => m.name === 'taunt'));
+  a.action('attack'); await sleep(200); // the cleric's mace swings without taunting
+  assert.equal(zt.tauntedBy, pb.id, 'a mace does not taunt');
   zt.tauntedUntil = 0;
   assert.equal(nearestPlayer(game, zt, 8), pa, 'once the taunt ends, the nearest player again');
 
   // firestorm at a point rains meteors on a pack
-  pa.mana = 20;
+  await hold(0); pa.mana = 20;
   const pack = [frozen(240, 240), frozen(241, 240), frozen(240, 241), frozen(241, 241)];
   const booms = a.events.length;
   game.setTile(236, 240, 'stone-block'); // and so do firestorms
@@ -103,12 +117,14 @@ try {
   assert.ok(byMage.some(h => pack.includes(h.target)), 'firestorm hurts the pack');
   await until(() => ![...game.entities.values()].some(e => e.type === 'firestorm' || e.type === 'blast'), 2000); // storm and blasts burn out
   game.setTile(236, 240, 'grass');
-  // heal yourself (LMB on self)
+  // heal yourself (mace LMB on self)
+  await hold(1);
   pa.hp = 5; await sleep(heal.cooldown * 1000 + 100);
   a.action('cast', { spell: 'heal', target: pa.id });
   await until(() => pa.hp === 5 + heal.amount);
 
-  // nova (RMB on self): a heavy hit on every foe around, a lighter one on friends, none on the caster
+  // nova (staff LMB on self): a heavy hit on every foe around, a lighter one on friends, none on the caster
+  await hold(0);
   const nova = (await import('../../shared/registry.js')).registries.spells.get('nova');
   pa.mana = 20; pa.hp = 10; pb.hp = pb.maxHp;
   const hpB = pb.hp, before = byMage.length;
@@ -117,6 +133,6 @@ try {
   assert.ok(pa.hp >= 10, 'the nova spares its caster'); // a kill may level them up, which adds health
   assert.equal(pb.hp, hpB - nova.friendDamage, 'and friends caught in it');
   assert.ok(a.events.some(m => m.name === 'nova'));
-  console.log('PASS staff, mana, fireball (target and direction), line of sight, heal (friend and self), mend (friend and self), sword taunt, firestorm at a point, nova');
+  console.log('PASS staff and mace, mana, fireball (target and direction), line of sight, heal (friend and self), mend (friend and self), sword taunt, firestorm at a point, nova');
 } catch (err) { console.error(err); process.exitCode = 1; }
 finally { sockets.forEach(ws => ws.close()); setTimeout(() => process.exit(process.exitCode || 0), 100); }
